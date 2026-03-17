@@ -332,28 +332,14 @@ theorem ResidueField.finrank_eq_length {R k : Type*} [CommRing R] [IsLocalRing R
           exact Submodule.smul_mem p r a_in
     }
     exact ⟨q, rfl⟩
-  let e : Submodule (ResidueField R) k ≃o Submodule R k := RelIso.ofSurjective e_aux this
-  rw [Order.krullDim_eq_of_orderIso e]
+  rw [Order.krullDim_eq_of_orderIso (RelIso.ofSurjective e_aux this)]
 
 end IsLocalRing
 
 --------------------------------------------------------------------------------
 
-namespace IsLocalRing
-
-variable {A : Type u} {R : Type v} {S : Type w} [CommRing A] [CommRing R] [CommRing S]
-  [Algebra A R] [Algebra A S] [IsLocalRing A] [IsLocalRing R] [IsLocalRing S]
-
-open scoped Pointwise
-
-#check (𝔪 A).map (algebraMap A R)
-
---/-- relative cotangent space -/
---def relCotangent : Type _ := 𝔪 R ⧸ (𝔪 R • ⊤ : Submodule R (𝔪 R)) ⊔ (𝔪 A).map (algebraMap A R)
-
-end IsLocalRing
-
 --------------------------------------------------------------------------------
+
 namespace DeformationTheory
 
 open IsLocalRing CategoryTheory Function
