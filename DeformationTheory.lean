@@ -40,7 +40,7 @@ theorem isLocalHom_toAlgHom {F : Type*} [FunLike F R S]
 end AlgHom
 
 -------------------------------------------------------------------------------------
-
+/-
 /-! # some basic preliminaries -/
 
 section AlgEquiv
@@ -53,7 +53,7 @@ theorem AlgEquiv.coeAlgHom_trans (e₁ : A₁ ≃ₐ[R] A₂) (e₂ : A₂ ≃�
 
 theorem AlgEquiv.coeAlgHom_apply (e : A₁ ≃ₐ[R] A₂) (x : A₁): (e : A₁ →ₐ[R] A₂) x = e x := rfl
 
-end AlgEquiv
+end AlgEquiv-/
 
 -------------------------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ variable {R : Type*} {S : Type*} {T : Type*} [CommRing R] [IsLocalRing R]
 section equivOfSurj
 
 theorem map_surjective {f : R →+* S} (h : Function.Surjective f) :
-    letI : IsLocalHom f := IsLocalHom.of_surjective f h
+    letI := h.isLocalHom
     Function.Surjective (map f) := fun y ↦ by
   obtain ⟨s, rfl⟩ := Ideal.Quotient.mk_surjective y
   obtain ⟨r, rfl⟩ := h s
@@ -76,12 +76,12 @@ theorem map_surjective {f : R →+* S} (h : Function.Surjective f) :
 
 /-- A surjective local ring homomorphism induces an equivalence of residue fields. -/
 noncomputable def equivOfSurj {f : R →+* S} (h : Function.Surjective f) : 𝓀 R ≃+* 𝓀 S :=
-  letI : IsLocalHom f := IsLocalHom.of_surjective f h
+  letI := h.isLocalHom
   .ofBijective (map f) ⟨RingHom.injective (map f), map_surjective h⟩
 
 @[simp]
 lemma equivOfSurj_apply {f : R →+* S} (h : Function.Surjective f) (x : 𝓀 R) :
-    letI : IsLocalHom f := IsLocalHom.of_surjective f h
+    letI := h.isLocalHom
     equivOfSurj h x = map f x := rfl
 
 end equivOfSurj
@@ -123,12 +123,12 @@ lemma mapAlgEquiv_apply (f : R ≃ₐ[A] S) (x : ResidueField R) :
 /-- `AlgEquiv` version of `IsLocalRing.ResidueField.equivOfSurj`. -/
 noncomputable def algEquivOfSurj {f : R →ₐ[A] S} (h : Function.Surjective f) :
     𝓀 R ≃ₐ[A] 𝓀 S :=
-  letI : IsLocalHom f := ⟨(IsLocalHom.of_surjective (f : R →+* S) h).map_nonunit⟩
+  letI : IsLocalHom f := ⟨h.isLocalHom.map_nonunit⟩
   .ofBijective (mapₐ f) ⟨RingHom.injective (map (f : R →+* S)), map_surjective h⟩
 
 @[simp]
 lemma algEquivOfSurj_apply {f : R →ₐ[A] S} (h : Function.Surjective f) (x : 𝓀 R) :
-    letI : IsLocalHom f := ⟨(IsLocalHom.of_surjective (f : R →+* S) h).map_nonunit⟩
+    letI : IsLocalHom f := ⟨h.isLocalHom.map_nonunit⟩
     algEquivOfSurj h x = mapₐ f x := rfl
 
 end algMap
@@ -394,7 +394,7 @@ noncomputable def ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Non
     [Algebra Λ X] [IsLocalHom (algebraMap Λ X)] (f : A →ₐ[Λ] X) (hf : Surjective f) :
     LocAlgCat.{w} Λ k :=
   letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨(IsLocalHom.of_surjective (f : A →+* X) hf).map_nonunit⟩
+  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
   of X ((ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.residueEquiv)
 
 lemma coe_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
@@ -406,7 +406,7 @@ lemma coe_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial 
 lemma ofSurj_residueEquiv (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
     [Algebra Λ X] [IsLocalHom (algebraMap Λ X)] (f : A →ₐ[Λ] X) (hf : Surjective f) :
   letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨(IsLocalHom.of_surjective (f : A →+* X) hf).map_nonunit⟩
+  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
   (ofSurj A X f hf).residueEquiv =
     (ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.residueEquiv := rfl
 
@@ -464,7 +464,7 @@ noncomputable def ofHomSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [
     [Algebra Λ X] [IsLocalHom (algebraMap Λ X)] (f : A →ₐ[Λ] X) (hf : Surjective f) :
     A ⟶ ofSurj A X f hf :=
   letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨(IsLocalHom.of_surjective (f : A →+* X) hf).map_nonunit⟩
+  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
   ofHom f (by ext; simp [ResidueField.mapₐ_apply, AlgEquiv.symm_apply_eq])
 
 @[simp]
@@ -677,7 +677,6 @@ theorem isSmallExtension_of_bijective (h : Function.Bijective f.hom.toAlgHom) :
   rw [RingHom.injective_iff_ker_eq_bot] at this
   simp [this]⟩
 
-open scoped Pointwise in
 /-- A preferred way to construct a small extension -/
 theorem IsSmallExtension.of (A : BaseCat.{w} Λ k) {x : A.obj} [Nontrivial (A.obj ⧸ Ideal.span {x})]
     [IsLocalHom (algebraMap Λ (A.obj ⧸ Ideal.span {x}))] (hx : ∀ y ∈ 𝔪 A.obj, x * y = 0) :
@@ -741,9 +740,8 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
     let v : A.obj →ₐ[Λ] C.obj := Ideal.Quotient.mkₐ Λ (Ideal.span {x})
     have u_surj : Surjective u :=
       Ideal.Quotient.lift_surjective_of_surjective (Ideal.span {x}) aux hf
-    have : IsLocalHom u := ⟨(IsLocalHom.of_surjective (u : C.obj →+* B.obj) u_surj).map_nonunit⟩
-    have : IsLocalHom v := ⟨(IsLocalHom.of_surjective (v : A.obj →+* C.obj)
-      Ideal.Quotient.mk_surjective).map_nonunit⟩
+    have : IsLocalHom u := ⟨u_surj.isLocalHom.map_nonunit⟩
+    have : IsLocalHom v := ⟨Ideal.Quotient.mk_surjective.isLocalHom.map_nonunit⟩
     have aux' : (B.obj.residueEquiv : 𝓀 B.obj →ₐ[Λ] k).comp (ResidueField.mapₐ u) =
       C.obj.residueEquiv := AlgHom.ext fun y ↦ by
       let e_v := ResidueField.algEquivOfSurj (f := v) Ideal.Quotient.mk_surjective
