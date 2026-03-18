@@ -74,7 +74,7 @@ theorem map_surjective {f : R →+* S} (h : Function.Surjective f) :
   obtain ⟨r, rfl⟩ := h s
   exact ⟨Ideal.Quotient.mk _ r, rfl⟩
 
-/-- A surjective local ring homomorphism induces an equivalence of residue fields. -/
+/-- A surjective ring homomorphism between local rings induces an equivalence of residue fields. -/
 noncomputable def equivOfSurj {f : R →+* S} (h : Function.Surjective f) : 𝓀 R ≃+* 𝓀 S :=
   letI := h.isLocalHom
   .ofBijective (map f) ⟨RingHom.injective (map f), map_surjective h⟩
@@ -83,6 +83,10 @@ noncomputable def equivOfSurj {f : R →+* S} (h : Function.Surjective f) : 𝓀
 lemma equivOfSurj_apply {f : R →+* S} (h : Function.Surjective f) (x : 𝓀 R) :
     letI := h.isLocalHom
     equivOfSurj h x = map f x := rfl
+
+lemma equivOfSurj_eq_mapEquiv (e : R ≃+* S) :
+    equivOfSurj (e : R →+* S).surjective = mapEquiv e := by
+  ext; rfl
 
 end equivOfSurj
 
@@ -130,6 +134,11 @@ noncomputable def algEquivOfSurj {f : R →ₐ[A] S} (h : Function.Surjective f)
 lemma algEquivOfSurj_apply {f : R →ₐ[A] S} (h : Function.Surjective f) (x : 𝓀 R) :
     letI : IsLocalHom f := ⟨h.isLocalHom.map_nonunit⟩
     algEquivOfSurj h x = mapₐ f x := rfl
+
+lemma algEquivOfSurj_eq_mapAlgEquiv (e : R ≃ₐ[A] S) :
+    algEquivOfSurj (show Function.Surjective (e : R →ₐ[A] S) from fun r ↦ e.surjective r) =
+      mapAlgEquiv e := by
+  ext; rfl
 
 end algMap
 
