@@ -216,20 +216,17 @@ instance {R : Type*} [CommRing R] [IsLocalRing R] [IsAdicComplete (𝔪 R) R] :
 
 --------------------------------------------------------------------------------
 
-@[instance]
-theorem IsArtinianRing.isAdicComplete {R : Type*} [CommRing R] [IsArtinianRing R]
-    [IsLocalRing R] : IsAdicComplete (𝔪 R) R := by
-  let : WithIdeal R := ⟨𝔪 R⟩
-  obtain ⟨n, hn⟩ := (isArtinianRing_iff_isNilpotent_maximalIdeal R).mp inferInstance
-  have n_pos : 0 < n := by
-    revert hn; contrapose!
-    simp only [nonpos_iff_eq_zero, Submodule.zero_eq_bot, ne_eq]
-    intro h; simp [h]
-  have : DiscreteTopology R := by
-    have : IsAdic (𝔪 R ^ n) := is_ideal_adic_pow rfl n_pos
-    rwa [← is_bot_adic_iff, ← Ideal.zero_eq_bot, ← hn]
-  exact (IsAdic.isAdicComplete_iff (by rfl)).mpr
-    ⟨IsRightUniformAddGroup.completeSpace_of_weaklyLocallyCompactSpace, inferInstance⟩
+/-- An Artinian local ring is adic complete with respect to its maximal ideal. -/
+instance IsArtinianRing.isAdicComplete {R : Type*} [CommRing R] [IsArtinianRing R]
+    [IsLocalRing R] : IsAdicComplete (IsLocalRing.maximalIdeal R) R where
+  prec' f hf := by
+    obtain ⟨n, hn⟩ := (isArtinianRing_iff_isNilpotent_maximalIdeal R).mp inferInstance
+    use f n; intro m
+    by_cases h : m ≤ n
+    · exact hf h
+    specialize hf (show n ≤ m by lia)
+    rw [hn, zero_smul, Ideal.zero_eq_bot, SModEq.bot] at hf
+    rw [hf]
 
 --------------------------------------------------------------------------------
 
@@ -725,7 +722,7 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
     have : IsLocalHom (algebraMap Λ (A.obj ⧸ Ideal.span {x})) := ⟨fun a ↦
       letI : IsLocalHom (algebraMap A.obj (A.obj ⧸ Ideal.span {x})) :=
         Ideal.Quotient.mk_surjective.isLocalHom
-      IsLocalHom.map_nonunit (f := algebraMap Λ A.obj) a ∘ IsLocalHom.map_nonunit
+      A.obj.localhom.map_nonunit a ∘ IsLocalHom.map_nonunit
         (f := algebraMap A.obj (A.obj ⧸ Ideal.span {x})) (algebraMap Λ A.obj a)⟩
     have aux : ∀ a ∈ Ideal.span {x}, (LocAlgCat.Hom.toAlgHom f.hom) a = 0 := by
       intro _ h; rw [Ideal.mem_span_singleton'] at h
@@ -771,6 +768,7 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
     exact lt_of_le_of_lt this (length_quotient_lt (Ideal.span {x}) (by simpa))
 
 open Module in
+@[stacks 06GG]
 theorem finrank_residueField_mul_length [IsLocalRing Λ] [Module.Finite Λ k] {M : Type*}
     [AddCommGroup M] [Module A.obj M] [Module Λ M] [IsScalarTower Λ A.obj M] :
       finrank (𝓀 Λ) k * length A.obj M = length Λ M := by
