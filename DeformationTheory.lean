@@ -9,6 +9,8 @@ public import Mathlib
 
 @[expose] public section
 
+noncomputable section
+
 local notation "𝓀" => IsLocalRing.ResidueField
 local notation "𝔪" => IsLocalRing.maximalIdeal
 
@@ -143,6 +145,33 @@ lemma algEquivOfSurj_eq_mapAlgEquiv (e : R ≃ₐ[A] S) :
 end algMap
 
 end IsLocalRing.ResidueField
+--------------------------------------------------------------------------------
+
+namespace IsLocalRing
+
+open Function
+
+variable {R S A : Type*}  [CommRing R] [IsLocalRing R] [CommRing S] [IsLocalRing S]
+    [CommRing A] [Algebra A R] [Algebra A S]
+
+theorem surjective_mapCotangent_of_surjective {f : R →ₐ[A] S} (h : Surjective f) :
+    Surjective ((maximalIdeal R).mapCotangent (maximalIdeal S) f
+      (((local_hom_TFAE f).out 0 3).mp h.isLocalHom)) := by
+  have : IsLocalHom (f : R →+* S) := h.isLocalHom
+  intro b; induction b using Submodule.Quotient.induction_on with
+  | H z =>
+    rcases z with ⟨z, hz⟩
+    rcases h z with ⟨y, hy⟩
+    suffices y ∈ maximalIdeal R by
+      use (maximalIdeal R).toCotangent ⟨y, this⟩
+      simp_rw [← hy]; rfl
+    rw [← residue_eq_zero_iff, ← hy] at hz
+    change residue S ((f : R →+* S) y) = 0 at hz
+    rwa [← ResidueField.map_residue (f : R →+* S), ← RingHom.mem_ker,
+      (RingHom.injective_iff_ker_eq_bot _).mp, Submodule.mem_bot, residue_eq_zero_iff] at hz
+    · exact RingHom.injective _
+
+end IsLocalRing
 
 --------------------------------------------------------------------------------
 
@@ -288,7 +317,6 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 --------------------------------------------------------------------------------
 
 -- goes to `Mathlib.RingTheory.IntegralClosure.IsIntegralClosure.Basic`
--- add `import Mathlib.RingTheory.Ideal.Maximal`
 
 theorem RingHom.ker_isMaximal_of_isIntegral (R k : Type*) [CommRing R] [Field k]
     [Algebra R k] [Algebra.IsIntegral R k] : (RingHom.ker (algebraMap R k)).IsMaximal := by
@@ -364,7 +392,7 @@ structure LocAlgCat where
   [localRing : IsLocalRing carrier]
   [algebra : Algebra Λ carrier]
   [localhom : IsLocalHom (algebraMap Λ carrier)]
-  residueEquiv : ResidueField carrier ≃ₐ[Λ] k
+  residueEquiv : 𝓀 carrier ≃ₐ[Λ] k
 
 namespace LocAlgCat
 
@@ -567,40 +595,21 @@ def isoEquivSubtypeAlgEquiv : (of X eX ≅ of Y eY) ≃
   toFun i := ⟨ofIso i, mapAlgEquiv_ofIso_trans_residueEquiv i⟩
   invFun f := isoMk f.val f.prop
 
-/-
-section ulift
+instance : Algebra A k := ((A.residueEquiv : 𝓀 A →+* k).comp (residue A)).toAlgebra
 
-variable (Λ k)
+lemma algebraMap_apply (a : A) : algebraMap A k a = A.residueEquiv (residue A a) := rfl
 
-/-- Universe lift functor for local algebras. -/
-noncomputable def uliftFunctor : LocAlgCat.{w} Λ k ⥤ LocAlgCat.{max w w'} Λ k where
-  obj A := .of (ULift A) ((ResidueField.mapAlgEquiv ULift.algEquiv).trans A.residueEquiv)
-  map {A B} f := ofHom ((ULift.algEquiv (R := Λ) (A := B).symm : B →ₐ[Λ] ULift B).comp
-    (f.toAlgHom.comp (ULift.algEquiv (R := Λ) (A := A) : ULift A →ₐ[Λ] A))) (by
-      ext
-      have hf := DFunLike.congr_fun f.residue_comp
-      simp only [AlgHom.comp_apply, AlgHom.coe_coe] at hf
-      simp [← hf, ← AlgHom.comp_apply, ← ResidueField.mapₐ_comp, ← AlgHom.comp_assoc])
+section relCotangent
 
-set_option backward.isDefEq.respectTransparency false in
-/-- The universe lift functor for local algebras is fully faithful. -/
-noncomputable def fullyFaithfulUliftFunctor : (uliftFunctor.{w', w} Λ k).FullyFaithful where
-  preimage {A B} f :=
-    let f_hom : ULift A →ₐ[Λ] ULift B := f.toAlgHom
-    letI : IsLocalHom f_hom := f.localhom
-    ofHom ((ULift.algEquiv (R := Λ) (A := B) : ULift B →ₐ[Λ] B).comp
-    (f_hom.comp (ULift.algEquiv (R := Λ) (A := A).symm : A →ₐ[Λ] ULift A))) (by
-      ext x
-      rcases AlgEquiv.surjective (ResidueField.mapAlgEquiv <|
-        ULift.algEquiv.{u, w', w} (R := Λ) (A := A)) x with ⟨x, rfl⟩
-      simpa [ResidueField.mapₐ_apply, uliftFunctor] using DFunLike.congr_fun f.residue_comp x)
+open scoped TensorProduct
 
-instance : (uliftFunctor.{w', w} Λ k).Full := (fullyFaithfulUliftFunctor Λ k).full
+/-- relative cotangent space for an object in `LocAlgCat`. -/
+@[stacks 06GY]
+def relCotangent (A : LocAlgCat.{w} Λ k) : Type _ := k ⊗[A] Ω[A⁄Λ]
+deriving Inhabited, AddCommGroup, Module k
 
-instance : (uliftFunctor.{w', w} Λ k).Faithful := (fullyFaithfulUliftFunctor Λ k).faithful
+end relCotangent
 
-end ulift
--/
 end LocAlgCat
 
 -----------------------------------------------------------------------------------------
