@@ -174,6 +174,12 @@ theorem surjective_mapCotangent_of_surjective {f : R →ₐ[A] S} (h : Surjectiv
 end IsLocalRing
 
 --------------------------------------------------------------------------------
+/-
+/- xxxx -/
+def Ideal.Cotangent.equivOfEq
+
+-/
+--------------------------------------------------------------------------------
 
 /-! # from PR -/
 
@@ -316,6 +322,11 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 
 --------------------------------------------------------------------------------
 
+lemma Ideal.Quotient.mk_smul_toCotangent {R : Type*} [CommRing R] (I : Ideal R) (a : R) (b : I) :
+    (Ideal.Quotient.mk I a) • (I.toCotangent b) = I.toCotangent (a • b) := rfl
+
+--------------------------------------------------------------------------------
+
 -- goes to `Mathlib.RingTheory.IntegralClosure.IsIntegralClosure.Basic`
 
 theorem RingHom.ker_isMaximal_of_isIntegral (R k : Type*) [CommRing R] [Field k]
@@ -368,9 +379,11 @@ theorem ResidueField.finrank_eq_length {R k : Type*} [CommRing R] [IsLocalRing R
     exact ⟨q, rfl⟩
   rw [Order.krullDim_eq_of_orderIso (RelIso.ofSurjective e_aux this)]
 
-end IsLocalRing
+lemma residue_smul_toCotangent {R : Type*} [CommRing R] [IsLocalRing R] (r : R)
+    (a : maximalIdeal R) : residue R r • ((maximalIdeal R).toCotangent a) =
+      (maximalIdeal R).toCotangent (r • a) := rfl
 
---------------------------------------------------------------------------------
+end IsLocalRing
 
 --------------------------------------------------------------------------------
 
@@ -599,7 +612,34 @@ instance : Algebra A k := ((A.residueEquiv : 𝓀 A →+* k).comp (residue A)).t
 
 lemma algebraMap_apply (a : A) : algebraMap A k a = A.residueEquiv (residue A a) := rfl
 
-section relCotangent
+section Cotangent
+
+instance : Module k (𝔪 A).Cotangent := Module.compHom _ (A.residueEquiv.symm : k →+* 𝓀 A)
+
+@[simp]
+lemma smul_cotangent_def (r : k) (x : (𝔪 A).Cotangent) : r • x = (A.residueEquiv.symm r) • x := rfl
+
+/-- map on cotangent space-/
+def mapCotangent (f : A ⟶ B) : (𝔪 A).Cotangent →ₗ[k] (𝔪 B).Cotangent := .mk
+  ((𝔪 A).mapCotangent (𝔪 B) f.toAlgHom (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
+  (by exact ⟨IsLocalHom.map_nonunit⟩))).toAddHom (fun r x ↦ by
+    obtain ⟨x, rfl⟩ := (𝔪 A).toCotangent_surjective x
+    simp only [smul_cotangent_def, AddHom.toFun_eq_coe, LinearMap.coe_toAddHom, RingHom.id_apply,
+      Ideal.mapCotangent_toCotangent]
+    obtain ⟨s, hs⟩ := residue_surjective (R := A) (A.residueEquiv.symm r)
+    obtain ⟨t, ht⟩ := residue_surjective (R := B) (B.residueEquiv.symm r)
+    simp_rw [← hs, ← ht, residue_smul_toCotangent, Ideal.mapCotangent_toCotangent,
+      Ideal.toCotangent_eq, SetLike.val_smul, smul_eq_mul, map_mul, ← sub_mul, pow_two]
+    refine Ideal.mul_mem_mul ?_ ?_
+    · rw [AlgEquiv.eq_symm_apply] at hs ht
+      have := DFunLike.congr_fun f.residue_comp ((residue A) s)
+      simp only [AlgHom.coe_comp, AlgHom.coe_coe, Function.comp_apply, ResidueField.mapₐ_apply,
+        ResidueField.map_residue, RingHom.coe_coe, hs] at this
+      rwa [← ht, B.residueEquiv.injective.eq_iff, ← sub_eq_zero, ← map_sub,
+        residue_eq_zero_iff] at this
+    · rw [← Ideal.mem_comap]; convert x.prop
+      exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
+        (by exact ⟨IsLocalHom.map_nonunit⟩))
 
 open scoped TensorProduct
 
@@ -608,10 +648,14 @@ open scoped TensorProduct
 def relCotangent (A : LocAlgCat.{w} Λ k) : Type _ := k ⊗[A] Ω[A⁄Λ]
 deriving Inhabited, AddCommGroup, Module k
 
-end relCotangent
+/-- Cotangent to relCotangent -/
+abbrev ofCotangent (A : LocAlgCat.{w} Λ k) : (𝔪 A).Cotangent →ₗ[k] relCotangent A := sorry
+
+end Cotangent
 
 end LocAlgCat
 
+/--/
 -----------------------------------------------------------------------------------------
 
 /-- The property of an object in `LocAlgCat Λ k` being Noetherian
