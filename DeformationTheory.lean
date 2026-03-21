@@ -391,7 +391,7 @@ instance isLocalRing_eqLocus {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R]
     map_one, one_mul]
 
 /-- The subring of pairs `(r, s) : R × S` such that `f r = g s`, i.e.,
-  the pullback of f and g as a subring of R × S -/
+  the pullback of f and g as a subring of R × S. -/
 abbrev RingHom.pullback {R S T : Type*} [Ring R] [Ring S] [Semiring T] (f : R →+* T)
     (g : S →+* T) : Subring (R × S) :=
   (f.comp (RingHom.fst R S)).eqLocus <| g.comp (RingHom.snd R S)
@@ -433,7 +433,7 @@ instance isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semi
 namespace AlgHom
 
 /-- The subalgebra of pairs `(a, b) : A × B` such that `f a = g b`, i.e.,
-  the pullback of f and g as a subalgebra of A × B -/
+  the pullback of f and g as a subalgebra of A × B. -/
 abbrev pullback {R A B C F G : Type*} [CommSemiring R] [Semiring A] [Algebra R A]
     [Semiring B] [Algebra R B] [Semiring C] [Algebra R C] [FunLike F A C] [AlgHomClass F R A C]
     [FunLike G B C] [AlgHomClass G R B C] (f : F) (g : G) : Subalgebra R (A × B) :=
@@ -919,12 +919,24 @@ instance [IsLocalRing Λ] [Module.Finite Λ k] : IsNoetherian Λ A.obj :=
 instance [IsLocalRing Λ] [Module.Finite Λ k] : IsArtinian Λ A.obj :=
   (isFiniteLength_iff_isNoetherian_isArtinian.mp (isFiniteLength A)).right
 
-#where
+instance isArtinianRing_algHomPullBack [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C)
+    (g : B ⟶ C) : IsArtinianRing (AlgHom.pullback (f.hom.toAlgHom) (g.hom.toAlgHom)) := by
+  set PB := AlgHom.pullback (f.hom.toAlgHom) (g.hom.toAlgHom)
+  rw [isArtinianRing_iff_isFiniteLength, ← Module.length_ne_top_iff]
+  refine ne_top_of_le_ne_top (b := Module.length Λ PB) ?_ ?_
+  · refine ne_top_of_le_ne_top (b := Module.length Λ (A.obj × B.obj)) ?_ ?_
+    · rw [Module.length_prod]
+      exact WithTop.add_ne_top.mpr ⟨Module.length_ne_top, Module.length_ne_top⟩
+    · exact Module.length_le_of_injective (Submodule.subtype PB.toSubmodule)
+        (Submodule.subtype_injective _)
+  have := Submodule.length_le_restrictScalar Λ PB PB ⊤
+  rwa [Module.length_top, Submodule.restrictScalars_top, Module.length_top] at this
+
 /-- xxx -/
 @[stacks 06GH "(1)"]
-def ofEqualizer_of_surjective (f : A ⟶ C) (g : B ⟶ C) (h : Surjective f.hom.toAlgHom) :
-    BaseCat.{w} Λ k :=
-  .of (AlgHom.pullback (f.hom.toAlgHom) (g.hom.toAlgHom)) ()
+def ofPullback_of_surjective [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
+    (h : Surjective f.hom.toAlgHom) : BaseCat.{w} Λ k :=
+  .of (AlgHom.pullback (f.hom.toAlgHom) (g.hom.toAlgHom)) (by sorry)
 
 end BaseCat
 
