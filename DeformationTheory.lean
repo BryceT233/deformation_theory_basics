@@ -395,9 +395,7 @@ theorem RingHom.isUnit_eqLocus_mk_of_isUnit {R S : Type*} [Ring R] [Semiring S] 
 
 instance isLocalHom_eqLocus_subtype {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R]
     (f g : R →+* S) : IsLocalHom (f.eqLocus g).subtype where
-  map_nonunit := by
-    simp only [Subring.subtype_apply, Subtype.forall, RingHom.mem_eqLocus]
-    exact fun a _ h ↦ RingHom.isUnit_eqLocus_mk_of_isUnit f g a (by simpa) h
+  map_nonunit := by simpa using RingHom.isUnit_eqLocus_mk_of_isUnit f g
 
 instance isLocalRing_eqLocus {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R] (f g : R →+* S) :
     IsLocalRing (f.eqLocus g) :=
@@ -408,10 +406,6 @@ instance isLocalRing_eqLocus {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R]
 abbrev RingHom.pullback {R S T : Type*} [Ring R] [Ring S] [Semiring T] (f : R →+* T)
     (g : S →+* T) : Subring (R × S) :=
   (f.comp (RingHom.fst R S)).eqLocus <| g.comp (RingHom.snd R S)
-
-@[simp]
-lemma RingHom.mem_pullback {R S T : Type*} [Ring R] [Ring S] [Semiring T] {f : R →+* T}
-    {g : S →+* T} {x : R × S} : x ∈ f.pullback g ↔ f x.1 = g x.2 := Iff.rfl
 
 theorem RingHom.isUnit_pullback_mk_of_isUnit {R S T : Type*} [Ring R] [Ring S] [Semiring T]
     (f : R →+* T) (g : S →+* T) (a : R × S) (a_in : a ∈ f.pullback g) (h : IsUnit a) :
