@@ -482,7 +482,7 @@ end RingEquiv
 
 namespace AlgHom
 
-variable {R A B C F G : Type*} [CommSemiring R]
+variable {R A B C : Type*} [CommSemiring R]
 
 section Semiring
 
@@ -532,6 +532,18 @@ instance isLocalRing_algHomPullback {R S T A : Type*} [CommSemiring R] [Ring S] 
 
 --------------------------------------------------------------------------------
 
+/-! # The Category of Local Algebras
+
+* `DeformationTheory.LocAlgCat` : The type of objects in the category of local `Λ`-algebras
+  with residue field `k`.  An object consists of a local `Λ`-algebra `A` equipped
+  with a specified `Λ`-algebra isomorphism from its residue field to `k`.
+
+* `DeformationTheory.LocAlgCat.Hom` : The type of morphisms between objects in `LocAlgCat Λ k`.
+  A morphism `f : A ⟶ B` is a local `Λ`-algebra homomorphism that is compatible with
+  the specified residue field isomorphisms.
+
+-/
+
 namespace DeformationTheory
 
 open IsLocalRing CategoryTheory Function
@@ -540,10 +552,10 @@ variable {Λ : Type u} [CommRing Λ]
 variable {k : Type v} [Field k] [Algebra Λ k]
 
 set_option backward.privateInPublic true in
-/-- The category of local `Λ`-algebras and their morphisms. -/
+/-- The category of local `Λ`-algebras with residue field `k` and their morphisms. -/
 structure LocAlgCat (Λ : Type u) (k : Type v) [CommRing Λ] [Field k] [Algebra Λ k] where
   private mk ::
-  /-- The underlying type. -/
+  /-- The underlying type of the local `Λ`-algebras. -/
   carrier : Type w
   [commRing : CommRing carrier]
   [localRing : IsLocalRing carrier]
@@ -664,6 +676,31 @@ lemma toAlgHom_ofHomSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Non
     [Algebra Λ X] (f : A →ₐ[Λ] X) (hf : Surjective f) : (ofHomSurj A X f hf).toAlgHom = f :=
   rfl
 
+/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `LocAlgCat Λ k`
+where `g.toAlgHom` is surjective, `ofPullback f g h` constructs the pullback
+`AlgHom.pullback f.toAlgHom g.toAlgHom` as an object in `LocAlgCat Λ k`. -/
+abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
+  of (AlgHom.pullback f.toAlgHom g.toAlgHom) ((ResidueField.algEquivOfSurj
+    (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom h)).trans
+    A.residueEquiv)
+
+lemma coe_obj_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
+    (ofPullback f g hg : Type w) = AlgHom.pullback f.toAlgHom g.toAlgHom := rfl
+
+/-- Upgrades the first projection map from the pullback algebra to
+a morphism in `LocAlgCat Λ k`. -/
+abbrev ofHomPullbackFst (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
+    ofPullback f g hg ⟶ A := .mk (AlgHom.pullbackFst f.toAlgHom g.toAlgHom) rfl
+
+/-- The property of an object in `LocAlgCat Λ k` being a Noetherian ring and
+adically complete with respect to its maximal ideal. -/
+abbrev IsCompleteNoetherian (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
+    ObjectProperty (LocAlgCat.{w} Λ k) := fun A ↦ IsNoetherianRing A ∧ IsAdicComplete (𝔪 A) A
+
+/-- The property of an object in `LocAlgCat Λ k` being an Artinian ring. -/
+abbrev IsArtinian (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
+    ObjectProperty (LocAlgCat.{w} Λ k) := fun A ↦ IsArtinianRing A
+
 @[simp] lemma hom_id : (𝟙 A : A ⟶ A).toAlgHom = AlgHom.id Λ A := rfl
 
 @[simp] lemma id_apply (a : A) : (𝟙 A : A ⟶ A) a = a := by simp
@@ -751,74 +788,57 @@ def isoEquivSubtypeAlgEquiv : (of X eX ≅ of Y eY) ≃
   toFun i := ⟨ofIso i, mapAlgEquiv_ofIso_trans_residueEquiv i⟩
   invFun f := isoMk f.val f.prop
 
-/-- xxx -/
-abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
-  of (AlgHom.pullback f.toAlgHom g.toAlgHom) ((ResidueField.algEquivOfSurj
-    (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom h)).trans
-    A.residueEquiv)
-
-lemma coe_obj_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    (ofPullback f g hg : Type w) = AlgHom.pullback f.toAlgHom g.toAlgHom := rfl
-
-/-- xxxx -/
-abbrev ofHompullbackFst [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
-    (hg : Surjective g.toAlgHom) : ofPullback f g hg ⟶ A :=
-  .mk (AlgHom.pullbackFst f.toAlgHom g.toAlgHom) rfl
-
 end LocAlgCat
 
 -----------------------------------------------------------------------------------------
 
-/-- The property of an object in `LocAlgCat Λ k` being Noetherian
-and adic complete with respect to its maximal ideal. -/
-abbrev CompNoeth (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
-    ObjectProperty (LocAlgCat.{w} Λ k) := fun A ↦ IsNoetherianRing A ∧ IsAdicComplete (𝔪 A) A
-
-/-- The property of an object in `LocAlgCat Λ k` being Artinian. -/
-abbrev Art (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
-    ObjectProperty (LocAlgCat.{w} Λ k) := fun A ↦ IsArtinianRing A
-
-/-- The full subcategory of `LocAlgCat Λ k` consisting of complete Noetherian local `Λ`-algebras.
-In deformation theory, this is the complete base category and often denoted as `Ĉ_Λ`. -/
+/-- The complete base category for deformation theory over `Λ`. This is the full subcategory of
+`LocAlgCat Λ k` consisting of complete Noetherian local `Λ`-algebras with residue field `k`. -/
 abbrev CBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :=
-  (CompNoeth.{w} Λ k).FullSubcategory
+  (LocAlgCat.IsCompleteNoetherian.{w} Λ k).FullSubcategory
 
 instance {A : CBaseCat Λ k} : IsNoetherianRing A.obj := A.property.left
 
 instance {A : CBaseCat Λ k} : IsAdicComplete (𝔪 A.obj) A.obj := A.property.right
 
-/-- base category -/
+/-- The base category for deformation theory over `Λ`. This is the full subcategory of
+`LocAlgCat Λ k` consisting of Artinian local `Λ`-algebras with residue field `k`. -/
 @[stacks 06GC]
 abbrev BaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :=
-  (Art.{w} Λ k).FullSubcategory
+  (LocAlgCat.IsArtinian.{w} Λ k).FullSubcategory
 
 instance (A : BaseCat Λ k) : IsArtinianRing A.obj := A.property
 
 namespace BaseCat
 
-/-- to complete base -/
+/-- The natural inclusion functor from the base category to the complete base category. -/
 abbrev ιToCBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
     BaseCat.{w} Λ k ⥤ CBaseCat.{w} Λ k :=
   ObjectProperty.ιOfLE fun _ _ ↦ ⟨inferInstance, inferInstance⟩
 
 variable {A B C : BaseCat.{w} Λ k} {f : A ⟶ B}
 
-/-- The object in the category of artinian local `Λ`-algebras associated to a type equipped with
-the appropriate typeclasses. This is the preferred way to construct a term of `BaseCat Λ k`. -/
+/-- The object in the base category associated to a type equipped with
+the appropriate typeclasses. This is a preferred way to construct a term of `BaseCat Λ k`. -/
 abbrev of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] [IsArtinianRing X]
     (eX : 𝓀 X ≃ₐ[Λ] k) : BaseCat Λ k := ⟨.of X eX, inferInstance⟩
 
-/-- xxx -/
+/-- Given an object `A : BaseCat Λ k` and a surjective `Λ`-algebra homomorphism
+`f : A.obj →ₐ[Λ] X` to a nontrivial `Λ`-algebra `X`, `ofSurj` constructs the induced
+object in `BaseCat Λ k`. -/
 noncomputable abbrev ofSurj (A : BaseCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
     [Algebra Λ X] (f : A.obj →ₐ[Λ] X) (hf : Surjective f) : BaseCat Λ k :=
   ⟨.ofSurj A.obj X f hf, hf.isArtinianRing⟩
 
-/-- xxx -/
+/-- Upgrades a surjective `Λ`-algebra homomorphism `f : A.obj →ₐ[Λ] X` from
+an object `A : BaseCat Λ k` to a nontrivial `Λ`-algebra `X` into a morphism  in `BaseCat Λ k`
+from `A` to the induced object `ofSurj A X f hf`. -/
 noncomputable abbrev ofHomSurj (A : BaseCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
     [Algebra Λ X] (f : A.obj →ₐ[Λ] X) (hf : Surjective f) : A ⟶ ofSurj A X f hf :=
   ObjectProperty.homMk (LocAlgCat.ofHomSurj A.obj X f hf)
 
-/-- small extenstion -/
+/-- A morphism `f : A ⟶ B` in `BaseCat Λ k` is a **small extension** if it is a surjective map
+whose kernel is a principal ideal annihilated by the maximal ideal of `A`. -/
 @[stacks 06GD]
 class IsSmallExtension (f : A ⟶ B) : Prop where
   private mk ::
@@ -1029,10 +1049,8 @@ instance isArtinianRing_pullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A �
 /-- xxxx -/
 @[stacks 06GH "(1)" ]
 abbrev ofPullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
-    (h : Surjective g.hom.toAlgHom) : BaseCat.{w} Λ k :=
-  of (AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom) ((ResidueField.algEquivOfSurj
-    (AlgHom.surjective_pullbackFst_of_surjective f.hom.toAlgHom g.hom.toAlgHom h)).trans
-    A.obj.residueEquiv)
+    (hg : Surjective g.hom.toAlgHom) : BaseCat.{w} Λ k :=
+  ⟨.ofPullback f.hom g.hom hg, inferInstance⟩
 
 lemma coe_obj_ofPullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
     (hg : Surjective g.hom.toAlgHom) : ((ofPullback f g hg).obj : Type w) =
@@ -1041,7 +1059,7 @@ lemma coe_obj_ofPullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g 
 /-- xxxx -/
 abbrev pullbackFst [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
     (hg : Surjective g.hom.toAlgHom) : ofPullback f g hg ⟶ A :=
-  ObjectProperty.homMk (LocAlgCat.Hom.mk (AlgHom.pullbackFst f.hom.toAlgHom g.hom.toAlgHom) rfl)
+  ObjectProperty.homMk (LocAlgCat.ofHomPullbackFst f.hom g.hom hg)
 
 @[instance, stacks 06GH "(2)"]
 theorem pullback_isSmallExtension [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
