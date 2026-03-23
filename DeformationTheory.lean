@@ -67,12 +67,10 @@ noncomputable def equivOfSurj {f : R →+* S} (h : Function.Surjective f) : 𝓀
 
 @[simp]
 lemma equivOfSurj_apply {f : R →+* S} (h : Function.Surjective f) (x : 𝓀 R) :
-    letI := h.isLocalHom
-    equivOfSurj h x = map f x := rfl
+    letI := h.isLocalHom; equivOfSurj h x = map f x := rfl
 
-lemma equivOfSurj_eq_mapEquiv (e : R ≃+* S) :
-    equivOfSurj (e : R →+* S).surjective = mapEquiv e := by
-  ext; rfl
+lemma equivOfSurj_eq_mapEquiv (e : R ≃+* S) : equivOfSurj (e : R →+* S).surjective =
+    mapEquiv e := by ext; rfl
 
 end equivOfSurj
 
@@ -91,8 +89,7 @@ noncomputable def mapₐ (f : R →ₐ[A] S) [IsLocalHom f] :
       Function.comp_apply, AlgHom.commutes, IsScalarTower.algebraMap_apply A S (ResidueField S) r,
       algebraMap_eq]
 
-lemma mapₐ_apply (f : R →ₐ[A] S) [IsLocalHom f] (x : ResidueField R) :
-    mapₐ f x = map f x := rfl
+lemma mapₐ_apply (f : R →ₐ[A] S) [IsLocalHom f] (x : ResidueField R) : mapₐ f x = map f x := rfl
 
 @[simp]
 lemma mapₐ_id : mapₐ (AlgHom.id A R) = AlgHom.id A (ResidueField R) := by ext; simp [mapₐ_apply]
@@ -123,8 +120,7 @@ lemma algEquivOfSurj_apply {f : R →ₐ[A] S} (h : Function.Surjective f) (x : 
 
 lemma algEquivOfSurj_eq_mapAlgEquiv (e : R ≃ₐ[A] S) :
     algEquivOfSurj (show Function.Surjective (e : R →ₐ[A] S) from fun r ↦ e.surjective r) =
-      mapAlgEquiv e := by
-  ext; rfl
+      mapAlgEquiv e := by ext; rfl
 
 end algMap
 
@@ -387,27 +383,27 @@ instance isLocalHom_eqLocus_subtype {R S : Type*} [Ring R] [Semiring S] (f g : R
 
 instance isLocalRing_eqLocus {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R] (f g : R →+* S) :
     IsLocalRing (f.eqLocus g) :=
-  Subring.isLocalRing_of_unit _ fun r r_in ↦ (isUnit_eqLocus_mk_iff f g r r_in).mpr
+  Subring.isLocalRing_of_unit _ fun r r_in ↦ (RingHom.isUnit_eqLocus_mk_iff f g r r_in).mpr
 
-section Pullback
+section pullback
 
 variable {R S T : Type*} [Ring R] [Ring S] [Semiring T]
 
 /-- The subring of pairs `(r, s) : R × S` such that `f r = g s`, i.e.,
   the pullback of f and g as a subring of R × S. -/
-abbrev Pullback (f : R →+* T) (g : S →+* T) : Subring (R × S) :=
+abbrev pullback (f : R →+* T) (g : S →+* T) : Subring (R × S) :=
   (f.comp (RingHom.fst R S)).eqLocus <| g.comp (RingHom.snd R S)
 
 /-- The first projection from the pullback of `f` and `g` to `A`. -/
-abbrev pullbackFst (f : R →+* T) (g : S →+* T) : (f.Pullback g) →+* R :=
-  (RingHom.fst R S).comp (RingHom.Pullback f g).subtype
+abbrev pullbackFst (f : R →+* T) (g : S →+* T) : (f.pullback g) →+* R :=
+  (RingHom.fst R S).comp (RingHom.pullback f g).subtype
 
 /-- The second projection from the pullback of `f` and `g` to `B`. -/
-abbrev pullbackSnd (f : R →+* T) (g : S →+* T) : (f.Pullback g) →+* S :=
-  (RingHom.snd R S).comp (f.Pullback g).subtype
+abbrev pullbackSnd (f : R →+* T) (g : S →+* T) : (f.pullback g) →+* S :=
+  (RingHom.snd R S).comp (f.pullback g).subtype
 
-theorem isUnit_pullback_mk_iff (f : R →+* T) (g : S →+* T) (a : R × S) (a_in : a ∈ f.Pullback g) :
-    IsUnit (⟨a, a_in⟩ : f.Pullback g) ↔ IsUnit a.1 ∧ IsUnit a.2 := by
+theorem isUnit_pullback_mk_iff (f : R →+* T) (g : S →+* T) (a : R × S) (a_in : a ∈ f.pullback g) :
+    IsUnit (⟨a, a_in⟩ : f.pullback g) ↔ IsUnit a.1 ∧ IsUnit a.2 := by
   refine ⟨fun h ↦ ?_, fun h ↦ ?_⟩
   · rw [← Prod.isUnit_iff]
     simp [isUnit_iff_exists, ← Subtype.val_inj] at h ⊢
@@ -457,7 +453,7 @@ instance isLocalHom_pullbackSnd {F G : Type*} [FunLike F R T] [RingHomClass F R 
 instance isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semiring T]
     [IsLocalRing R] [FunLike F R T] [RingHomClass F R T] [FunLike G S T] [RingHomClass G S T]
     (f : F) (g : G) [IsLocalHom g] :
-    IsLocalRing (RingHom.Pullback (f : R →+* T) (g : S →+* T)) where
+    IsLocalRing (RingHom.pullback (f : R →+* T) (g : S →+* T)) where
   isUnit_or_isUnit_of_add_one {a b} h := by
     rcases a with ⟨⟨u, v⟩, huv⟩; rcases b with ⟨⟨s, t⟩, hst⟩
     simp only [AddMemClass.mk_add_mk, Prod.mk_add_mk, ← Subtype.val_inj, OneMemClass.coe_one,
@@ -472,15 +468,15 @@ instance isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semi
     apply IsLocalHom.map_nonunit at this; right
     simpa [RingHom.isUnit_pullback_mk_iff] using ⟨hs, this⟩
 
-end Pullback
+end pullback
 
 end RingHom
 
 namespace RingEquiv
 
 abbrev pullbackProdComm {R S T : Type*} [Ring R] [Ring S] [Semiring T] (f : R →+* T)
-    (g : S →+* T) : f.Pullback g ≃+* g.Pullback f :=
-  (RingEquiv.prodComm (R := R) (S := S)).restrict (f.Pullback g) (g.Pullback f) (by simp [eq_comm])
+    (g : S →+* T) : f.pullback g ≃+* g.pullback f :=
+  (RingEquiv.prodComm (R := R) (S := S)).restrict (f.pullback g) (g.pullback f) (by simp [eq_comm])
 
 end RingEquiv
 
@@ -491,51 +487,48 @@ variable {R A B C F G : Type*} [CommSemiring R]
 section Semiring
 
 variable [Semiring A] [Algebra R A] [Semiring B] [Algebra R B] [Semiring C] [Algebra R C]
-  [FunLike F A C] [AlgHomClass F R A C] [FunLike G B C] [AlgHomClass G R B C]
 
 /-- The subalgebra of pairs `(a, b) : A × B` such that `f a = g b`, i.e.,
   the pullback of f and g as a subalgebra of A × B. -/
-abbrev Pullback (f : F) (g : G) : Subalgebra R (A × B) := AlgHom.equalizer
-  ((f : A →ₐ[R] C).comp (AlgHom.fst R A B)) ((g : B →ₐ[R] C).comp (AlgHom.snd R A B))
+abbrev pullback (f : A →ₐ[R] C) (g : B →ₐ[R] C) : Subalgebra R (A × B) := equalizer
+  (f.comp (fst R A B)) (g.comp (snd R A B))
 
 /-- The first projection from the pullback of `f` and `g` to `A`. -/
-abbrev pullbackFst (f : F) (g : G) : Pullback f g →ₐ[R] A :=
-  (AlgHom.fst R A B).comp (Pullback f g).val
+abbrev pullbackFst (f : A →ₐ[R] C) (g : B →ₐ[R] C) : pullback f g →ₐ[R] A :=
+  (fst R A B).comp (pullback f g).val
 
 /-- The second projection from the pullback of `f` and `g` to `B`. -/
-abbrev pullbackSnd (f : F) (g : G) : Pullback f g →ₐ[R] B :=
-  (AlgHom.snd R A B).comp (Pullback f g).val
+abbrev pullbackSnd (f : A →ₐ[R] C) (g : B →ₐ[R] C) : pullback f g →ₐ[R] B :=
+  (snd R A B).comp (pullback f g).val
 
 end Semiring
 
 section Ring
 
 variable [Ring A] [Algebra R A] [Ring B] [Algebra R B] [Semiring C] [Algebra R C]
-  [FunLike F A C] [AlgHomClass F R A C] [FunLike G B C] [AlgHomClass G R B C]
 
-instance isLocalHom_pullbackFst (f : F) (g : G) [IsLocalHom g] : IsLocalHom (pullbackFst f g) :=
-  ⟨(RingHom.isLocalHom_pullbackFst f g).map_nonunit⟩
+instance isLocalHom_pullbackFst (f : A →ₐ[R] C) (g : B →ₐ[R] C) [IsLocalHom g] :
+    IsLocalHom (pullbackFst f g) := ⟨(RingHom.isLocalHom_pullbackFst f g).map_nonunit⟩
 
-instance isLocalHom_pullbackSnd (f : F) (g : G) [IsLocalHom f] : IsLocalHom (pullbackSnd f g) :=
-  ⟨(RingHom.isLocalHom_pullbackSnd f g).map_nonunit⟩
+instance isLocalHom_pullbackSnd (f : A →ₐ[R] C) (g : B →ₐ[R] C)[IsLocalHom f] :
+    IsLocalHom (pullbackSnd f g) := ⟨(RingHom.isLocalHom_pullbackSnd f g).map_nonunit⟩
 
-theorem surjective_pullbackFst_of_surjective (f : F) (g : G) (h : Function.Surjective g) :
-    Function.Surjective (pullbackFst f g) :=
+theorem surjective_pullbackFst_of_surjective (f : A →ₐ[R] C) (g : B →ₐ[R] C)
+    (h : Function.Surjective g) : Function.Surjective (pullbackFst f g) :=
   RingHom.surjective_pullbackFst_of_surjective (f : A →+* C) (g : B →+* C) h
 
-theorem surjective_pullbackSnd_of_surjective (f : F) (g : G) (h : Function.Surjective f) :
-    Function.Surjective (pullbackSnd f g) :=
+theorem surjective_pullbackSnd_of_surjective (f : A →ₐ[R] C) (g : B →ₐ[R] C)
+    (h : Function.Surjective f) : Function.Surjective (pullbackSnd f g) :=
   RingHom.surjective_pullbackSnd_of_surjective (f : A →+* C) (g : B →+* C) h
 
 end Ring
 
 end AlgHom
 
-instance isLocalRing_algHomPullback {R S T A F G : Type*} [CommSemiring R] [Ring S] [Algebra R S]
-    [IsLocalRing S] [Ring T] [Algebra R T] [Semiring A] [Algebra R A] [FunLike F S A]
-    [AlgHomClass F R S A] [FunLike G T A] [AlgHomClass G R T A] (f : F) (g : G) [IsLocalHom g] :
-      IsLocalRing (AlgHom.Pullback f g) :=
-  inferInstanceAs <| IsLocalRing (RingHom.Pullback (f : S →+* A) (g : T →+* A))
+instance isLocalRing_algHomPullback {R S T A : Type*} [CommSemiring R] [Ring S] [Algebra R S]
+    [IsLocalRing S] [Ring T] [Algebra R T] [Semiring A] [Algebra R A] (f : S →ₐ[R] A)
+    (g : T →ₐ[R] A) [IsLocalHom g] : IsLocalRing (AlgHom.pullback f g) :=
+  inferInstanceAs <| IsLocalRing (RingHom.pullback (f : S →+* A) (g : T →+* A))
 
 --------------------------------------------------------------------------------
 
@@ -760,15 +753,15 @@ def isoEquivSubtypeAlgEquiv : (of X eX ≅ of Y eY) ≃
 
 /-- xxx -/
 abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
-  of (AlgHom.Pullback f.toAlgHom g.toAlgHom) ((ResidueField.algEquivOfSurj
+  of (AlgHom.pullback f.toAlgHom g.toAlgHom) ((ResidueField.algEquivOfSurj
     (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom h)).trans
     A.residueEquiv)
 
 lemma coe_obj_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    (ofPullback f g hg : Type w) = AlgHom.Pullback f.toAlgHom g.toAlgHom := rfl
+    (ofPullback f g hg : Type w) = AlgHom.pullback f.toAlgHom g.toAlgHom := rfl
 
 /-- xxxx -/
-abbrev ofHomPullbackFst [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
+abbrev ofHompullbackFst [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
     (hg : Surjective g.toAlgHom) : ofPullback f g hg ⟶ A :=
   .mk (AlgHom.pullbackFst f.toAlgHom g.toAlgHom) rfl
 
@@ -1021,8 +1014,8 @@ instance [IsLocalRing Λ] [Module.Finite Λ k] : IsArtinian Λ A.obj :=
   (isFiniteLength_iff_isNoetherian_isArtinian.mp (isFiniteLength A)).right
 
 instance isArtinianRing_pullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C)
-    (g : B ⟶ C) : IsArtinianRing (AlgHom.Pullback f.hom.toAlgHom g.hom.toAlgHom) := by
-  set PB := AlgHom.Pullback f.hom.toAlgHom g.hom.toAlgHom
+    (g : B ⟶ C) : IsArtinianRing (AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom) := by
+  set PB := AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom
   rw [isArtinianRing_iff_isFiniteLength, ← Module.length_ne_top_iff]
   refine ne_top_of_le_ne_top (b := Module.length Λ PB) ?_ ?_
   · refine ne_top_of_le_ne_top (b := Module.length Λ (A.obj × B.obj)) ?_ ?_
@@ -1037,13 +1030,13 @@ instance isArtinianRing_pullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A �
 @[stacks 06GH "(1)" ]
 abbrev ofPullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
     (h : Surjective g.hom.toAlgHom) : BaseCat.{w} Λ k :=
-  of (AlgHom.Pullback f.hom.toAlgHom g.hom.toAlgHom) ((ResidueField.algEquivOfSurj
+  of (AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom) ((ResidueField.algEquivOfSurj
     (AlgHom.surjective_pullbackFst_of_surjective f.hom.toAlgHom g.hom.toAlgHom h)).trans
     A.obj.residueEquiv)
 
 lemma coe_obj_ofPullback [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
     (hg : Surjective g.hom.toAlgHom) : ((ofPullback f g hg).obj : Type w) =
-      AlgHom.Pullback f.hom.toAlgHom g.hom.toAlgHom := rfl
+      AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom := rfl
 
 /-- xxxx -/
 abbrev pullbackFst [IsLocalRing Λ] [Module.Finite Λ k] (f : A ⟶ C) (g : B ⟶ C)
