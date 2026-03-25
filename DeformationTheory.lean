@@ -60,6 +60,7 @@ theorem map_surjective {f : R →+* S} (h : Function.Surjective f) :
   obtain ⟨r, rfl⟩ := h s
   exact ⟨Ideal.Quotient.mk _ r, rfl⟩
 
+set_option backward.isDefEq.respectTransparency false in
 /-- A surjective ring homomorphism between local rings induces an equivalence of residue fields. -/
 noncomputable def equivOfSurj {f : R →+* S} (h : Function.Surjective f) : 𝓀 R ≃+* 𝓀 S :=
   letI := h.isLocalHom
@@ -97,6 +98,7 @@ lemma mapₐ_id : mapₐ (AlgHom.id A R) = AlgHom.id A (ResidueField R) := by ex
 theorem mapₐ_comp (f : R →ₐ[A] S) (g : S →ₐ[A] T) [IsLocalHom f] [IsLocalHom g] :
     mapₐ (g.comp f) = (mapₐ g).comp (mapₐ f) := by ext; simp [AlgHom.comp_toRingHom, mapₐ_apply]
 
+set_option backward.isDefEq.respectTransparency false in
 /-- An algebra isomorphism defines an algebra isomorphism between residue fields. -/
 noncomputable def mapAlgEquiv (f : R ≃ₐ[A] S) : ResidueField R ≃ₐ[A] ResidueField S :=
   .ofRingEquiv (f := mapEquiv f.toRingEquiv) fun r ↦ by
@@ -107,6 +109,7 @@ noncomputable def mapAlgEquiv (f : R ≃ₐ[A] S) : ResidueField R ≃ₐ[A] Res
 lemma mapAlgEquiv_apply (f : R ≃ₐ[A] S) (x : ResidueField R) :
     mapAlgEquiv f x = mapₐ (f : R →ₐ[A] S) x := rfl
 
+set_option backward.isDefEq.respectTransparency false in
 /-- `AlgEquiv` version of `IsLocalRing.ResidueField.equivOfSurj`. -/
 noncomputable def algEquivOfSurj {f : R →ₐ[A] S} (h : Function.Surjective f) :
     𝓀 R ≃ₐ[A] 𝓀 S :=
@@ -125,33 +128,6 @@ lemma algEquivOfSurj_eq_mapAlgEquiv (e : R ≃ₐ[A] S) :
 end algMap
 
 end IsLocalRing.ResidueField
---------------------------------------------------------------------------------
-
-namespace IsLocalRing
-
-open Function
-
-variable {R S A : Type*}  [CommRing R] [IsLocalRing R] [CommRing S] [IsLocalRing S]
-    [CommRing A] [Algebra A R] [Algebra A S]
-
-theorem surjective_mapCotangent_of_surjective {f : R →ₐ[A] S} (h : Surjective f) :
-    Surjective ((maximalIdeal R).mapCotangent (maximalIdeal S) f
-      (((local_hom_TFAE f).out 0 3).mp h.isLocalHom)) := by
-  have : IsLocalHom (f : R →+* S) := h.isLocalHom
-  intro b; induction b using Submodule.Quotient.induction_on with
-  | H z =>
-    rcases z with ⟨z, hz⟩
-    rcases h z with ⟨y, hy⟩
-    suffices y ∈ maximalIdeal R by
-      use (maximalIdeal R).toCotangent ⟨y, this⟩
-      simp_rw [← hy]; rfl
-    rw [← residue_eq_zero_iff, ← hy] at hz
-    change residue S ((f : R →+* S) y) = 0 at hz
-    rwa [← ResidueField.map_residue (f : R →+* S), ← RingHom.mem_ker,
-      (RingHom.injective_iff_ker_eq_bot _).mp (show Injective (ResidueField.map (f : R →+* S)) from
-        RingHom.injective _), Submodule.mem_bot, residue_eq_zero_iff] at hz
-
-end IsLocalRing
 
 --------------------------------------------------------------------------------
 
@@ -272,6 +248,8 @@ theorem Submodule.length_quotient_lt {R M : Type*} [Ring R] [AddCommGroup M] [Mo
   nth_rw 1 [← zero_add (Module.length R (M ⧸ p)), ENat.add_lt_add_iff_right Module.length_ne_top]
   exact Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h)
 
+-- from other's PR
+
 @[to_dual]
 theorem WithBot.unbot_inj {α : Type*} {a b : WithBot α} (ha : a ≠ ⊥) (hb : b ≠ ⊥) :
     a.unbot ha = b.unbot hb ↔ a = b := by
@@ -345,9 +323,35 @@ end IsLocalRing
 lemma Ideal.Quotient.mk_smul_toCotangent {R : Type*} [CommRing R] (I : Ideal R) (a : R) (b : I) :
     (Ideal.Quotient.mk I a) • (I.toCotangent b) = I.toCotangent (a • b) := rfl
 
-lemma IsLocalRing.residue_smul_toCotangent {R : Type*} [CommRing R] [IsLocalRing R] (r : R)
-    (a : maximalIdeal R) : residue R r • ((maximalIdeal R).toCotangent a) =
-      (maximalIdeal R).toCotangent (r • a) := rfl
+namespace IsLocalRing
+
+open Function
+
+variable {R S A : Type*} [CommRing R] [IsLocalRing R] [CommRing S] [IsLocalRing S]
+    [CommRing A] [Algebra A R] [Algebra A S]
+
+set_option backward.isDefEq.respectTransparency false in
+theorem surjective_mapCotangent_of_surjective {f : R →ₐ[A] S} (h : Surjective f) :
+    Surjective ((maximalIdeal R).mapCotangent (maximalIdeal S) f
+      (((local_hom_TFAE f).out 0 3).mp h.isLocalHom)) := by
+  have : IsLocalHom (f : R →+* S) := h.isLocalHom
+  intro b; induction b using Submodule.Quotient.induction_on with
+  | H z =>
+    rcases z with ⟨z, hz⟩
+    rcases h z with ⟨y, hy⟩
+    suffices y ∈ maximalIdeal R by
+      use (maximalIdeal R).toCotangent ⟨y, this⟩
+      simp_rw [← hy]; rfl
+    rw [← residue_eq_zero_iff, ← hy] at hz
+    change residue S ((f : R →+* S) y) = 0 at hz
+    rwa [← ResidueField.map_residue (f : R →+* S), ← RingHom.mem_ker,
+      (RingHom.injective_iff_ker_eq_bot _).mp (show Injective (ResidueField.map (f : R →+* S)) from
+        RingHom.injective _), Submodule.mem_bot, residue_eq_zero_iff] at hz
+
+lemma residue_smul_toCotangent (r : R) (a : maximalIdeal R) :
+    residue R r • ((maximalIdeal R).toCotangent a) = (maximalIdeal R).toCotangent (r • a) := rfl
+
+end IsLocalRing
 
 --------------------------------------------------------------------------------
 
@@ -559,7 +563,6 @@ open IsLocalRing CategoryTheory Function
 variable {Λ : Type u} [CommRing Λ]
 variable {k : Type v} [Field k] [Algebra Λ k]
 
-set_option backward.privateInPublic true in
 /-- The category of local `Λ`-algebras with residue field `k` and their morphisms. -/
 structure LocAlgCat (Λ : Type u) (k : Type v) [CommRing Λ] [Field k] [Algebra Λ k] where
   private mk ::
@@ -645,8 +648,6 @@ instance : FunLike (Hom A B) A B where
     rcases g with ⟨g, _⟩
     simpa using h-/
 
-set_option backward.privateInPublic true in
-set_option backward.privateInPublic.warn false in
 instance : Category (LocAlgCat.{w} Λ k) where
   Hom A B := Hom A B
   id A := ⟨AlgHom.id Λ A, by simp⟩
@@ -671,6 +672,7 @@ lemma surjective_residueFieldMapₐ (f : A ⟶ B) : Surjective (ResidueField.map
   use y; rw [← B.e.injective.eq_iff, ← hy]
   exact DFunLike.congr_fun f.e_comp y
 
+set_option backward.isDefEq.respectTransparency false in
 open ResidueField in
 lemma exists_mem_maximalIdeal_toAlgHom_add (f : A ⟶ C) (g : B ⟶ C) (hf : Surjective f.toAlgHom)
     (a : A) : ∃ (b : B) (m : A), m ∈ 𝔪 A ∧ f.toAlgHom (a + m) = g.toAlgHom b := by
@@ -683,8 +685,6 @@ lemma exists_mem_maximalIdeal_toAlgHom_add (f : A ⟶ C) (g : B ⟶ C) (hf : Sur
   rw [eq_sub_iff_add_eq', ← map_add] at hm
   exact ⟨b, m, hm⟩
 
-set_option backward.privateInPublic true in
-set_option backward.privateInPublic.warn false in
 /-- Typecheck an `AlgHom` compatible with residue maps as a morphism in `LocAlgCat`. -/
 abbrev ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f] (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) =
     eX) : of X eX ⟶ of Y eY := ⟨f, hf⟩
@@ -1014,7 +1014,6 @@ theorem finrank_mul_length {M : Type*} [AddCommGroup M] [Module A.obj M] [Module
           Submodule.subsingleton_iff_eq_bot, Submodule.span_eq_bot]
         simpa
       rw [eq_add, ← hm, ← hl] at hn; norm_cast at hn
-      rw [ENat.coe_inj] at hn
       have ih_l := ih l (by lia) (by rw [← hl]; simp) hl
       have l_ne : l ≠ 0 := by
         rwa [ne_eq, ← ENat.coe_inj, Nat.cast_zero, hl, length_eq_zero_iff,
