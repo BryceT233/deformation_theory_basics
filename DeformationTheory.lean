@@ -272,6 +272,19 @@ theorem Submodule.length_quotient_lt {R M : Type*} [Ring R] [AddCommGroup M] [Mo
   nth_rw 1 [← zero_add (Module.length R (M ⧸ p)), ENat.add_lt_add_iff_right Module.length_ne_top]
   exact Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h)
 
+@[to_dual]
+theorem WithBot.unbot_inj {α : Type*} {a b : WithBot α} (ha : a ≠ ⊥) (hb : b ≠ ⊥) :
+    a.unbot ha = b.unbot hb ↔ a = b := by
+  rw [WithBot.unbot_eq_iff, WithBot.coe_unbot]
+
+theorem Module.length_eq_of_surjective {R S M : Type*} [Ring R] [AddCommGroup M] [Module R M]
+    [CommRing S] [Algebra S R] [Module S M] [IsScalarTower S R M]
+    (h : Function.Surjective (algebraMap S R)) : Module.length S M = Module.length R M := by
+  have : RingHomSurjective (algebraMap S R) := ⟨h⟩
+  let f : M →ₛₗ[algebraMap S R] M := ⟨AddHom.id M, by simp⟩
+  rw [Module.length, Module.length, WithBot.unbot_inj,
+    Order.krullDim_eq_of_orderIso (Submodule.orderIsoMapComapOfBijective f Function.bijective_id)]
+
 --------------------------------------------------------------------------------
 
 -- goes to `Mathlib.RingTheory.Ideal.Maps`
@@ -325,28 +338,6 @@ instance {R k : Type*} [CommRing R] [IsLocalRing R] [Field k] [Algebra R k] [Mod
   (Ideal.quotEquivOfEq (show Ideal.comap (algebraMap R k) ⊥ = maximalIdeal R by
     rw [← eq_maximalIdeal (RingHom.ker_isMaximal_of_isIntegral R k), RingHom.ker]))
   (RingEquiv.quotientBot k) (by ext; rfl)
-
-theorem ResidueField.finrank_eq_length {R k : Type*} [CommRing R] [IsLocalRing R] [Field k]
-    [Algebra R k] [Module.Finite R k] :
-    Module.finrank (ResidueField R) k = Module.length R k := by
-  rw [← Module.length_eq_finrank, ← WithBot.coe_inj, Module.coe_length, Module.coe_length]
-  let e_aux : Submodule (ResidueField R) k ↪o Submodule R k :=
-    Submodule.restrictScalarsEmbedding R (ResidueField R) k
-  have : Function.Surjective e_aux := fun p ↦ by
-    let q : Submodule (𝓀 R) k := {
-      carrier := p
-      add_mem' := p.add_mem
-      zero_mem' := p.zero_mem
-      smul_mem' r a a_in := by
-        induction r using Submodule.Quotient.induction_on (maximalIdeal R) with
-        | H r =>
-          change residue R r • a ∈ p
-          rw [Algebra.smul_def, ← ResidueField.algebraMap_eq, ← IsScalarTower.algebraMap_apply,
-            ← Algebra.smul_def]
-          exact Submodule.smul_mem p r a_in
-    }
-    exact ⟨q, rfl⟩
-  rw [Order.krullDim_eq_of_orderIso (RelIso.ofSurjective e_aux this)]
 
 end IsLocalRing
 --------------------------------------------------------------------------------
@@ -1046,7 +1037,8 @@ theorem finrank_mul_length {M : Type*} [AddCommGroup M] [Module A.obj M] [Module
         Ideal.quotientEquivAlg I (𝔪 A.obj) (AlgEquiv.refl (R := Λ)) (by simp [hI])
       exact ⟨(e.restrictScalars Λ).trans <| f.toLinearEquiv.trans A.obj.e.toLinearEquiv⟩
     rcases h' with ⟨e⟩
-    rw [e.length_eq, ResidueField.finrank_eq_length]
+    rw [e.length_eq, ← Module.length_eq_finrank, eq_comm]
+    exact Module.length_eq_of_surjective (R := 𝓀 Λ) (S := Λ) (M := k) residue_surjective
 
 variable (A) in
 theorem isFiniteLength : IsFiniteLength Λ A.obj := by
