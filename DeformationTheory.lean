@@ -53,8 +53,7 @@ variable {R : Type*} {S : Type*} {T : Type*} [CommRing R] [IsLocalRing R]
 
 section equivOfSurj
 
-theorem map_surjective {f : R →+* S} (h : Function.Surjective f) :
-    letI := h.isLocalHom
+theorem map_surjective {f : R →+* S} [IsLocalHom f] (h : Function.Surjective f) :
     Function.Surjective (map f) := fun y ↦ by
   obtain ⟨s, rfl⟩ := Ideal.Quotient.mk_surjective y
   obtain ⟨r, rfl⟩ := h s
@@ -80,8 +79,7 @@ section algMap
 variable {A : Type*} [CommRing A] [Algebra A R] [Algebra A S] [Algebra A T]
 
 /-- The algebra map version of `IsLocalRing.ResidueField.map`. -/
-noncomputable def mapₐ (f : R →ₐ[A] S) [IsLocalHom f] :
-    ResidueField R →ₐ[A] ResidueField S where
+noncomputable def mapₐ (f : R →ₐ[A] S) [IsLocalHom f] : ResidueField R →ₐ[A] ResidueField S where
   __ := map f
   commutes' r := by
     rw [RingHom.toMonoidHom_eq_coe, OneHom.toFun_eq_coe, MonoidHom.toOneHom_coe,
@@ -248,21 +246,6 @@ theorem Submodule.length_quotient_lt {R M : Type*} [Ring R] [AddCommGroup M] [Mo
   nth_rw 1 [← zero_add (Module.length R (M ⧸ p)), ENat.add_lt_add_iff_right Module.length_ne_top]
   exact Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h)
 
--- from other's PR
-
-@[to_dual]
-theorem WithBot.unbot_inj {α : Type*} {a b : WithBot α} (ha : a ≠ ⊥) (hb : b ≠ ⊥) :
-    a.unbot ha = b.unbot hb ↔ a = b := by
-  rw [WithBot.unbot_eq_iff, WithBot.coe_unbot]
-
-theorem Module.length_eq_of_surjective {R S M : Type*} [Ring R] [AddCommGroup M] [Module R M]
-    [CommRing S] [Algebra S R] [Module S M] [IsScalarTower S R M]
-    (h : Function.Surjective (algebraMap S R)) : Module.length S M = Module.length R M := by
-  have : RingHomSurjective (algebraMap S R) := ⟨h⟩
-  let f : M →ₛₗ[algebraMap S R] M := ⟨AddHom.id M, by simp⟩
-  rw [Module.length, Module.length, WithBot.unbot_inj,
-    Order.krullDim_eq_of_orderIso (Submodule.orderIsoMapComapOfBijective f Function.bijective_id)]
-
 --------------------------------------------------------------------------------
 
 -- goes to `Mathlib.RingTheory.Ideal.Maps`
@@ -285,39 +268,6 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
   · rw [smul_eq_mul, mul_comm, ← smul_eq_mul] at x_in
     exact smul_le_right x_in
 
---------------------------------------------------------------------------------
-
--- goes to `Mathlib.RingTheory.IntegralClosure.IsIntegralClosure.Basic`
-
-theorem RingHom.ker_isMaximal_of_isIntegral (R k : Type*) [CommRing R] [Field k]
-    [Algebra R k] [Algebra.IsIntegral R k] : (RingHom.ker (algebraMap R k)).IsMaximal := by
-  have := Ideal.bot_isMaximal (K := k)
-  rw [ker, Ideal.Quotient.maximal_ideal_iff_isField_quotient]
-  exact isField_of_isIntegral_of_isField Ideal.algebraMap_quotient_injective
-    (Ideal.Quotient.field _).toIsField
-
--- goes to `RingTheory/LocalRing/ResidueField/Instances.lean`
-/- add `public import Mathlib.RingTheory.IntegralClosure.IsIntegralClosure.Basic`
- `public import Mathlib.RingTheory.Finiteness.Quotient` -/
-
-namespace IsLocalRing
-
-instance ResidueField.algebraOfIsIntegral {R k : Type*} [CommRing R] [IsLocalRing R] [Field k]
-    [Algebra R k] [Algebra.IsIntegral R k] : Algebra (ResidueField R) k :=
-  (Ideal.Quotient.lift (maximalIdeal R) (algebraMap R k)
-    (by simp [← eq_maximalIdeal (RingHom.ker_isMaximal_of_isIntegral R k)])).toAlgebra
-
-instance ResidueField.isScalarTowerOfIsIntegral {R k : Type*} [CommRing R] [IsLocalRing R]
-    [Field k] [Algebra R k] [Algebra.IsIntegral R k] : IsScalarTower R (ResidueField R) k :=
-  .of_algebraMap_eq fun _ ↦ rfl
-
-instance {R k : Type*} [CommRing R] [IsLocalRing R] [Field k] [Algebra R k] [Module.Finite R k] :
-    Module.Finite (ResidueField R) k := .of_equiv_equiv
-  (Ideal.quotEquivOfEq (show Ideal.comap (algebraMap R k) ⊥ = maximalIdeal R by
-    rw [← eq_maximalIdeal (RingHom.ker_isMaximal_of_isIntegral R k), RingHom.ker]))
-  (RingEquiv.quotientBot k) (by ext; rfl)
-
-end IsLocalRing
 --------------------------------------------------------------------------------
 
 lemma Ideal.Quotient.mk_smul_toCotangent {R : Type*} [CommRing R] (I : Ideal R) (a : R) (b : I) :
@@ -587,16 +537,6 @@ instance : CoeSort (LocAlgCat Λ k) (Type w) := ⟨carrier⟩
 
 attribute [coe] carrier
 
-instance : Algebra A k := ((A.e : 𝓀 A →+* k).comp (residue A)).toAlgebra
-
-instance : IsScalarTower Λ A k where
-  smul_assoc r a x := by
-    simp only [Algebra.smul_def, map_mul, ← mul_assoc]
-    congr; exact AlgEquiv.commutes A.e r
-
-@[simp]
-lemma e_residue_apply (a : A) : A.e (residue A a) = algebraMap A k a := rfl
-
 set_option backward.privateInPublic true in
 set_option backward.privateInPublic.warn false in
 /-- The object in the category of local `Λ`-algebras associated to a type equipped with
@@ -609,141 +549,83 @@ lemma coe_of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] (eX : 𝓀
     (of X eX : Type w) = X := rfl
 
 variable (Λ k) in
-lemma of_carrier (A : LocAlgCat.{w} Λ k) : of A A.e = A := rfl
-
-/-- Given an object `A : LocAlgCat Λ k` and a surjective map `f : ↑A →ₐ[Λ] X` to a
-nontrivial `Λ`-algebra `X`, `LocAlgCat.ofSurj` constructs an induced object of `LocAlgCat Λ k`. -/
-noncomputable def ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A →ₐ[Λ] X) (hf : Surjective f) : LocAlgCat.{w} Λ k :=
-  letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
-  of X ((ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.e)
-
-lemma coe_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X] [Algebra Λ X]
-    (f : A →ₐ[Λ] X) (hf : Surjective f) : (ofSurj A X f hf : Type w) = X := rfl
-
-lemma e_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A →ₐ[Λ] X) (hf : Surjective f) :
-  letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
-  (ofSurj A X f hf).e = (ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.e := rfl
+lemma of_coe (A : LocAlgCat.{w} Λ k) : of A A.e = A := rfl
 
 /-- The type of morphisms in `LocAlgCat Λ k`. -/
-@[ext]
+@[ext (iff := false)]
 structure Hom (A B : LocAlgCat.{w} Λ k) where
   /-- The underlying algebra map. -/
-  toAlgHom : A →ₐ[Λ] B
-  [localhom : IsLocalHom toAlgHom]
-  e_comp : (B.e : 𝓀 B →ₐ[Λ] k).comp (ResidueField.mapₐ toAlgHom) = A.e
+  toAlgHom' : A →ₐ[Λ] B
+  [localhom : IsLocalHom toAlgHom']
+  e_comp : (B.e : 𝓀 B →ₐ[Λ] k).comp (ResidueField.mapₐ toAlgHom') = A.e
 
 attribute [instance] Hom.localhom
-
-initialize_simps_projections Hom (-localhom)
-
-/-
-instance : FunLike (Hom A B) A B where
-  coe f := f.toAlgHom
-  coe_injective' f g h := by
-    rcases f with ⟨f, _⟩
-    rcases g with ⟨g, _⟩
-    simpa using h-/
 
 instance : Category (LocAlgCat.{w} Λ k) where
   Hom A B := Hom A B
   id A := ⟨AlgHom.id Λ A, by simp⟩
-  comp {A B C} f g := ⟨g.toAlgHom.comp f.toAlgHom, by
+  comp {A B C} f g := ⟨g.toAlgHom'.comp f.toAlgHom', by
     rw [ResidueField.mapₐ_comp, ← AlgHom.comp_assoc, g.e_comp, f.e_comp]⟩
 
-/-instance : ConcreteCategory (LocAlgCat.{w} Λ k) Hom where
+instance : FunLike (Hom A B) A B where
+  coe f := f.toAlgHom'
+  coe_injective' f g h := by
+    rcases f with ⟨f, _⟩
+    rcases g with ⟨g, _⟩
+    simpa using h
+
+instance : ConcreteCategory (LocAlgCat.{w} Λ k) Hom where
   hom := id
-  ofHom := id-/
-/-
+  ofHom := id
+
 /-- Cast a morphism of `LocAlgCat` into an `AlgHom`. -/
 abbrev Hom.toAlgHom {A B : LocAlgCat.{w} Λ k} (f : A.Hom B) : A →ₐ[Λ] B :=
-  f.toAlgHom
+  f.toAlgHom'
 
 /-- See Note [custom simps projection] -/
 def Hom.Simps.toAlgHom {A B : LocAlgCat.{w} Λ k} (f : A.Hom B) : A →ₐ[Λ] B :=
-  f.toAlgHom-/
+  f.toAlgHom'
 
-lemma surjective_residueFieldMapₐ (f : A ⟶ B) : Surjective (ResidueField.mapₐ f.toAlgHom) := by
-  intro x
-  rcases A.e.surjective (B.e x) with ⟨y, hy⟩
-  use y; rw [← B.e.injective.eq_iff, ← hy]
-  exact DFunLike.congr_fun f.e_comp y
-
-set_option backward.isDefEq.respectTransparency false in
-open ResidueField in
-lemma exists_mem_maximalIdeal_toAlgHom_add (f : A ⟶ C) (g : B ⟶ C) (hf : Surjective f.toAlgHom)
-    (a : A) : ∃ (b : B) (m : A), m ∈ 𝔪 A ∧ f.toAlgHom (a + m) = g.toAlgHom b := by
-  rcases surjective_residueFieldMapₐ g (mapₐ f.toAlgHom (residue A a)) with ⟨u, hu⟩
-  rcases residue_surjective (R := B) u with ⟨b, rfl⟩
-  rw [mapₐ_apply, mapₐ_apply, map_residue, map_residue, ← sub_eq_zero, ← map_sub,
-    residue_eq_zero_iff, ← map_maximalIdeal_of_surjective (f.toAlgHom : A →+* C) hf,
-    Ideal.mem_map_iff_of_surjective (f.toAlgHom : A →+* C) hf] at hu
-  rcases hu with ⟨m, hm⟩
-  rw [eq_sub_iff_add_eq', ← map_add] at hm
-  exact ⟨b, m, hm⟩
+initialize_simps_projections Hom (-localhom, toAlgHom' → toAlgHom)
 
 /-- Typecheck an `AlgHom` compatible with residue maps as a morphism in `LocAlgCat`. -/
 abbrev ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f] (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) =
     eX) : of X eX ⟶ of Y eY := ⟨f, hf⟩
 
-/-- Given an object `A : LocAlgCat Λ k` and a surjective map `f : ↑A →ₐ[Λ] X` to a
-nontrivial `Λ`-algebra `X`, `LocAlgCat.toOfSurj` upgrades `f` to a morphism in `LocAlgCat Λ k`
-from `A` to the induced object `LocAlgCat.ofSurj A X f hf`. -/
-noncomputable def toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A →ₐ[Λ] X) (hf : Surjective f) : A ⟶ ofSurj A X f hf :=
-  letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
-  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
-  ofHom f (by ext; simp [ResidueField.mapₐ_apply, AlgEquiv.symm_apply_eq])
-
 @[simp]
-lemma toAlgHom_toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A →ₐ[Λ] X) (hf : Surjective f) : (toOfSurj A X f hf).toAlgHom = f := rfl
-
-/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `LocAlgCat Λ k`
-where `g.toAlgHom` is surjective, `ofPullback f g h` constructs the pullback
-`AlgHom.pullback f.toAlgHom g.toAlgHom` as an object in `LocAlgCat Λ k`. -/
-abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
-  of (AlgHom.pullback f.toAlgHom g.toAlgHom) ((ResidueField.algEquivOfSurj
-    (f.toAlgHom.surjective_pullbackFst_of_surjective g.toAlgHom h)).trans A.e)
-
-lemma coe_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    (ofPullback f g hg : Type w) = f.toAlgHom.pullback g.toAlgHom := rfl
-
-/-- Upgrades the first projection map from the pullback algebra to
-a morphism in `LocAlgCat Λ k`. -/
-abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    ofPullback f g hg ⟶ A := .mk (f.toAlgHom.pullbackFst g.toAlgHom) rfl
-
-/-
-@[simp] lemma hom_id : (𝟙 A : A ⟶ A).toAlgHom = AlgHom.id Λ A := rfl
-
-@[simp] lemma id_apply (a : A) : (𝟙 A : A ⟶ A) a = a := by simp
-
-@[simp] lemma hom_comp (f : A ⟶ B) (g : B ⟶ C) :
-    (f ≫ g).toAlgHom = g.toAlgHom.comp f.toAlgHom := rfl
-
-@[simp] lemma comp_apply (f : A ⟶ B) (g : B ⟶ C) (a : A) : (f ≫ g) a = g (f a) := by simp
-
-@[ext] lemma hom_ext {f g : A ⟶ B} (hf : f.toAlgHom = g.toAlgHom) : f = g := Hom.ext hf
-
-@[simp] lemma toAlgHom_ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f]
+lemma toAlgHom_ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f]
     (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) = eX) : (ofHom f hf).toAlgHom = f := rfl
 
-@[simp] lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.e_comp = f := rfl
+@[simp]
+lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.e_comp = f := rfl
 
-@[simp] lemma ofHom_id : ofHom (.id Λ X) (by simp) = 𝟙 (of X eX) := rfl
+@[simp]
+lemma hom_id : (𝟙 A : A ⟶ A).toAlgHom = AlgHom.id Λ A := rfl
 
-@[simp] lemma ofHom_comp (f : X →ₐ[Λ] Y) [IsLocalHom f]
-    (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) = eX) (g : Y →ₐ[Λ] Z) [IsLocalHom g]
-      (hg : (eZ : 𝓀 Z →ₐ[Λ] k).comp (ResidueField.mapₐ g) = (eY : 𝓀 Y →ₐ[Λ] k)) :
+@[simp]
+lemma id_apply (a : A) : (𝟙 A : A ⟶ A) a = a := by simp
+
+@[simp]
+lemma hom_comp (f : A ⟶ B) (g : B ⟶ C) : (f ≫ g).toAlgHom = g.toAlgHom.comp f.toAlgHom := rfl
+
+@[simp]
+lemma comp_apply (f : A ⟶ B) (g : B ⟶ C) (a : A) : (f ≫ g) a = g (f a) := by simp
+
+@[ext]
+lemma hom_ext {f g : A ⟶ B} (hf : f.toAlgHom = g.toAlgHom) : f = g := Hom.ext hf
+
+@[simp]
+lemma ofHom_id : ofHom (.id Λ X) (by simp) = 𝟙 (of X eX) := rfl
+
+@[simp]
+lemma ofHom_comp (f : X →ₐ[Λ] Y) [IsLocalHom f] (g : Y →ₐ[Λ] Z) [IsLocalHom g]
+    (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) = eX)
+    (hg : (eZ : 𝓀 Z →ₐ[Λ] k).comp (ResidueField.mapₐ g) = eY) :
     ofHom (g.comp f) (by rw [ResidueField.mapₐ_comp, ← AlgHom.comp_assoc, hg, hf]) =
       ofHom f hf ≫ ofHom g hg := rfl
 
-lemma ofHom_apply (f : X →ₐ[Λ] Y) [IsLocalHom f]
-    (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) = eX) (x : X) : ofHom f hf x = f x := rfl
+lemma ofHom_apply (f : X →ₐ[Λ] Y) [IsLocalHom f] (x : X)
+    (hf : (eY : 𝓀 Y →ₐ[Λ] k).comp (ResidueField.mapₐ f) = eX) : ofHom f hf x = f x := rfl
 
 lemma inv_hom_apply (e : A ≅ B) (x : A) : e.inv (e.hom x) = x := by simp
 
@@ -804,7 +686,89 @@ def isoEquivSubtypeAlgEquiv : (of X eX ≅ of Y eY) ≃
     { e : X ≃ₐ[Λ] Y // (ResidueField.mapAlgEquiv e).trans eY = eX } where
   toFun i := ⟨ofIso i, mapAlgEquiv_ofIso_trans_e i⟩
   invFun f := isoMk f.val f.prop
--/
+
+theorem of_right_inj (e e' : 𝓀 X ≃ₐ[Λ] k) : of X e = of X e' ↔ e = e' := by simp
+
+---------------------------------------------------------------------------------------------
+
+/-- Given an object `A : LocAlgCat Λ k` and a surjective map `f : ↑A →ₐ[Λ] X` to a
+nontrivial local `Λ`-algebra `X`, `LocAlgCat.ofSurj` constructs an induced object of `LocAlgCat Λ k`. -/
+noncomputable abbrev ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
+    [Algebra Λ X] [IsLocalRing X] (f : A →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    LocAlgCat.{w} Λ k := of X ((ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.e)
+
+lemma coe_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X] [Algebra Λ X]
+    [IsLocalRing X] (f : A →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    (ofSurj A X f hf : Type w) = X := rfl
+
+lemma e_ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
+    [Algebra Λ X] (f : A →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+  letI : IsLocalRing X := IsLocalRing.of_surjective' (f : A →+* X) hf
+  letI : IsLocalHom f := ⟨hf.isLocalHom.map_nonunit⟩
+  (ofSurj A X f hf).e = (ResidueField.algEquivOfSurj (f := f) hf).symm.trans A.e := rfl
+
+/-- Given an object `A : LocAlgCat Λ k` and a surjective map `f : ↑A →ₐ[Λ] X` to a
+nontrivial `Λ`-algebra `X`, `LocAlgCat.toOfSurj` upgrades `f` to a morphism in `LocAlgCat Λ k`
+from `A` to the induced object `LocAlgCat.ofSurj A X f hf`. -/
+noncomputable abbrev toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
+    [Algebra Λ X] [IsLocalRing X] (f : A →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    A ⟶ ofSurj A X f hf := ofHom f (by ext; simp [ResidueField.mapₐ_apply, AlgEquiv.symm_apply_eq])
+
+@[simp]
+lemma toAlgHom_toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
+    [IsLocalRing X] [Algebra Λ X] (f : A →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    (toOfSurj A X f hf).toAlgHom = f := rfl
+
+/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `LocAlgCat Λ k`
+where `g.toAlgHom` is surjective, `ofPullback f g h` constructs the pullback
+`AlgHom.pullback f.toAlgHom g.toAlgHom` as an object in `LocAlgCat Λ k`. -/
+abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
+  of (f.toAlgHom.pullback g.toAlgHom) ((ResidueField.algEquivOfSurj
+    (f.toAlgHom.surjective_pullbackFst_of_surjective g.toAlgHom h)).trans A.e)
+
+lemma coe_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
+    (ofPullback f g hg : Type w) = f.toAlgHom.pullback g.toAlgHom := rfl
+
+/-- Upgrades the first projection map from the pullback algebra to
+a morphism in `LocAlgCat Λ k`. -/
+abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
+    ofPullback f g hg ⟶ A := .mk (f.toAlgHom.pullbackFst g.toAlgHom) rfl
+
+-----------------------------------------------------------------------------------
+
+instance : Algebra A k := ((A.e : 𝓀 A →+* k).comp (residue A)).toAlgebra
+
+instance : IsScalarTower Λ A k where
+  smul_assoc r a x := by
+    simp only [Algebra.smul_def, map_mul, ← mul_assoc]
+    congr; exact AlgEquiv.commutes A.e r
+
+@[simp]
+lemma e_residue_apply (a : A) : A.e (residue A a) = algebraMap A k a := rfl
+
+instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
+  map_nonunit r hr := by
+    apply IsUnit.map (algebraMap A k) at hr
+    rwa [← IsScalarTower.algebraMap_apply Λ A k r, isUnit_map_iff] at hr
+
+lemma surjective_residueFieldMapₐ (f : A ⟶ B) : Surjective (ResidueField.mapₐ f.toAlgHom) := by
+  intro x
+  rcases A.e.surjective (B.e x) with ⟨y, hy⟩
+  use y; rw [← B.e.injective.eq_iff, ← hy]
+  exact DFunLike.congr_fun f.e_comp y
+
+set_option backward.isDefEq.respectTransparency false in
+open ResidueField in
+lemma exists_mem_maximalIdeal_toAlgHom_add (f : A ⟶ C) (g : B ⟶ C) (hf : Surjective f.toAlgHom)
+    (a : A) : ∃ (b : B) (m : A), m ∈ 𝔪 A ∧ f.toAlgHom (a + m) = g.toAlgHom b := by
+  rcases surjective_residueFieldMapₐ g (mapₐ f.toAlgHom (residue A a)) with ⟨u, hu⟩
+  rcases residue_surjective (R := B) u with ⟨b, rfl⟩
+  rw [mapₐ_apply, mapₐ_apply, map_residue, map_residue, ← sub_eq_zero, ← map_sub,
+    residue_eq_zero_iff, ← map_maximalIdeal_of_surjective (f.toAlgHom : A →+* C) hf,
+    Ideal.mem_map_iff_of_surjective (f.toAlgHom : A →+* C) hf] at hu
+  rcases hu with ⟨m, hm⟩
+  rw [eq_sub_iff_add_eq', ← map_add] at hm
+  exact ⟨b, m, hm⟩
 
 end LocAlgCat
 
@@ -843,18 +807,18 @@ abbrev of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] [IsArtinianRi
     (eX : 𝓀 X ≃ₐ[Λ] k) : BaseCat Λ k := ⟨.of X eX, inferInstance⟩
 
 /-- Given an object `A : BaseCat Λ k` and a surjective `Λ`-algebra homomorphism
-`f : A.obj →ₐ[Λ] X` to a nontrivial `Λ`-algebra `X`, `ofSurj` constructs the induced
+`f : ↑A.obj →ₐ[Λ] X` to a nontrivial `Λ`-algebra `X`, `ofSurj` constructs the induced
 object in `BaseCat Λ k`. -/
 noncomputable abbrev ofSurj (A : BaseCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A.obj →ₐ[Λ] X) (hf : Surjective f) : BaseCat Λ k :=
-  ⟨.ofSurj A.obj X f hf, hf.isArtinianRing⟩
+    [IsLocalRing X] [Algebra Λ X] (f : A.obj →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    BaseCat Λ k := ⟨.ofSurj A.obj X f hf, hf.isArtinianRing⟩
 
-/-- Upgrades a surjective `Λ`-algebra homomorphism `f : A.obj →ₐ[Λ] X` from
+/-- Upgrades a surjective `Λ`-algebra homomorphism `f : ↑A.obj →ₐ[Λ] X` from
 an object `A : BaseCat Λ k` to a nontrivial `Λ`-algebra `X` into a morphism  in `BaseCat Λ k`
 from `A` to the induced object `ofSurj A X f hf`. -/
 noncomputable abbrev toOfSurj (A : BaseCat.{w} Λ k) (X : Type w) [CommRing X] [Nontrivial X]
-    [Algebra Λ X] (f : A.obj →ₐ[Λ] X) (hf : Surjective f) : A ⟶ ofSurj A X f hf :=
-  ObjectProperty.homMk (LocAlgCat.toOfSurj A.obj X f hf)
+    [IsLocalRing X] [Algebra Λ X] (f : A.obj →ₐ[Λ] X) [IsLocalHom f] (hf : Surjective f) :
+    A ⟶ ofSurj A X f hf := ObjectProperty.homMk (LocAlgCat.toOfSurj A.obj X f hf)
 
 /-- A morphism `f : A ⟶ B` in `BaseCat Λ k` is a **small extension** if it is a surjective map
 whose kernel is a principal ideal annihilated by the maximal ideal of `A`. -/
@@ -883,8 +847,12 @@ theorem isSmallExtension_of_bijective (h : Function.Bijective f.hom.toAlgHom) :
   rw [RingHom.injective_iff_ker_eq_bot] at this
   simp [this]⟩
 
-theorem IsSmallExtension.of (A : BaseCat.{w} Λ k) {x : A.obj} [Nontrivial (A.obj ⧸ Ideal.span {x})]
-    (hx : ∀ y ∈ 𝔪 A.obj, x * y = 0) : IsSmallExtension (A.toOfSurj (A.obj ⧸ Ideal.span {x})
+theorem IsSmallExtension.toOfSurj_quotient_span_singleton (A : BaseCat.{w} Λ k) {x : A.obj}
+    [Nontrivial (A.obj ⧸ Ideal.span {x})] (hx : ∀ y ∈ 𝔪 A.obj, x * y = 0) :
+    letI : IsLocalRing (A.obj ⧸ Ideal.span {x}) := .of_surjective' _ Ideal.Quotient.mk_surjective
+    letI : IsLocalHom (Ideal.Quotient.mkₐ Λ (Ideal.span {x})) :=
+      ⟨Ideal.Quotient.mk_surjective.isLocalHom.map_nonunit⟩
+    IsSmallExtension (A.toOfSurj (A.obj ⧸ Ideal.span {x})
       (Ideal.Quotient.mkₐ Λ (Ideal.span {x})) Ideal.Quotient.mk_surjective) := by
   rw [isSmallExtenstion_iff]
   refine ⟨Ideal.Quotient.mk_surjective, x, ?_, hx⟩
@@ -926,15 +894,18 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
       rw [Ideal.ne_top_iff_exists_maximal]
       exact ⟨𝔪 A.obj, maximalIdeal.isMaximal A.obj,
         le_maximalIdeal (RingHom.ker_ne_top f.hom.toAlgHom)⟩
+    have : IsLocalRing (A.obj ⧸ Ideal.span {x}) := .of_surjective' _ Ideal.Quotient.mk_surjective
+    have : IsLocalHom (Ideal.Quotient.mkₐ Λ (Ideal.span {x})) :=
+      ⟨Ideal.Quotient.mk_surjective.isLocalHom.map_nonunit⟩
     have aux : ∀ a ∈ Ideal.span {x}, (LocAlgCat.Hom.toAlgHom f.hom) a = 0 := by
       intro _ h; rw [Ideal.mem_span_singleton'] at h
       rcases h with ⟨_, rfl⟩; rw [← RingHom.mem_ker]
       exact Ideal.mul_mem_left _ _ x_in
-    let C := ofSurj A (A.obj ⧸ Ideal.span {x}) (Ideal.Quotient.mkₐ ..)
+    let C := ofSurj A (A.obj ⧸ Ideal.span {x}) (Ideal.Quotient.mkₐ Λ (Ideal.span {x}))
       Ideal.Quotient.mk_surjective
-    let g : A ⟶ C := toOfSurj A (A.obj ⧸ Ideal.span {x}) (Ideal.Quotient.mkₐ ..)
+    let g : A ⟶ C := toOfSurj A (A.obj ⧸ Ideal.span {x}) (Ideal.Quotient.mkₐ Λ (Ideal.span {x}))
       Ideal.Quotient.mk_surjective
-    have hg : IsSmallExtension g := IsSmallExtension.of A hx
+    have hg : IsSmallExtension g := IsSmallExtension.toOfSurj_quotient_span_singleton A hx
     let u : C.obj →ₐ[Λ] B.obj := Ideal.Quotient.liftₐ (Ideal.span {x}) f.hom.toAlgHom aux
     let v : A.obj →ₐ[Λ] C.obj := Ideal.Quotient.mkₐ Λ (Ideal.span {x})
     have u_surj : Surjective u :=
@@ -1055,7 +1026,7 @@ instance : IsArtinian Λ A.obj :=
 
 instance isArtinianRing_pullback (f : A ⟶ C) (g : B ⟶ C) :
     IsArtinianRing (f.hom.toAlgHom.pullback g.hom.toAlgHom) := by
-  set PB := AlgHom.pullback f.hom.toAlgHom g.hom.toAlgHom
+  set PB := f.hom.toAlgHom.pullback g.hom.toAlgHom
   rw [isArtinianRing_iff_isFiniteLength, ← Module.length_ne_top_iff]
   refine ne_top_of_le_ne_top (b := Module.length Λ PB) ?_ ?_
   · refine ne_top_of_le_ne_top (b := Module.length Λ (A.obj × B.obj)) ?_ ?_
@@ -1118,7 +1089,7 @@ theorem fromOfPullback_isSmallExtension (f : A ⟶ C) (g : B ⟶ C) [IsSmallExte
       grind
 
 end
-/--/
+
 end BaseCat
 
 section Cotangent
@@ -1131,6 +1102,7 @@ instance : Module k (𝔪 A).Cotangent := Module.compHom _ (A.e.symm : k →+* �
 
 lemma smul_cotangent_def (r : k) (x : (𝔪 A).Cotangent) : r • x = (A.e.symm r) • x := rfl
 
+set_option backward.isDefEq.respectTransparency false in
 /-- map between cotangent spaces -/
 def mapCotangent (f : A ⟶ B) : (𝔪 A).Cotangent →ₗ[k] (𝔪 B).Cotangent := .mk
   ((𝔪 A).mapCotangent (𝔪 B) f.toAlgHom (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
@@ -1147,8 +1119,7 @@ def mapCotangent (f : A ⟶ B) : (𝔪 A).Cotangent →ₗ[k] (𝔪 B).Cotangent
       have := DFunLike.congr_fun f.e_comp ((residue A) s)
       simp only [AlgHom.coe_comp, AlgHom.coe_coe, Function.comp_apply, ResidueField.mapₐ_apply,
         ResidueField.map_residue, RingHom.coe_coe, hs] at this
-      rwa [← ht, B.e.injective.eq_iff, ← sub_eq_zero, ← map_sub,
-        residue_eq_zero_iff] at this
+      rwa [← ht, B.e.injective.eq_iff, ← sub_eq_zero, ← map_sub, residue_eq_zero_iff] at this
     · rw [← Ideal.mem_comap]; convert x.prop
       exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
         (by exact ⟨IsLocalHom.map_nonunit⟩))
@@ -1165,7 +1136,7 @@ def relCotangent (A : LocAlgCat.{w} Λ k) : Type _ := k ⊗[A] Ω[A⁄Λ]
 deriving Inhabited, AddCommGroup, Module k
 
 /-- Cotangent to relCotangent -/
-abbrev ofCotangent (A : LocAlgCat.{w} Λ k) : (𝔪 A).Cotangent →ₗ[k] relCotangent A := sorry
+abbrev toRelCotangent (A : LocAlgCat.{w} Λ k) : (𝔪 A).Cotangent →ₗ[k] relCotangent A := sorry
 
 end LocAlgCat
 
