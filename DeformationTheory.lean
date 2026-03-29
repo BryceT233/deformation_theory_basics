@@ -26,7 +26,7 @@ variable {A : Type*} [CommSemiring A] [Algebra A R] [Algebra A S] [Algebra A T]
 
 variable (A) in
 @[instance]
-local instance isLocalHom_algHomId : IsLocalHom (AlgHom.id A R) := ⟨fun _ ↦ id⟩
+theorem isLocalHom_algHomId : IsLocalHom (AlgHom.id A R) := ⟨fun _ ↦ id⟩
 
 @[instance]
 theorem AlgHom.isLocalHom_comp (f : R →ₐ[A] S) (g : S →ₐ[A] T) [IsLocalHom f] [IsLocalHom g] :
