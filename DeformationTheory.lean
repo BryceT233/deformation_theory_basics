@@ -183,10 +183,6 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 
 --------------------------------------------------------------------------------
 
-@[simp]
-lemma Ideal.Quotient.mk_smul_toCotangent {R : Type*} [CommRing R] (I : Ideal R) (a : R) (b : I) :
-    (Ideal.Quotient.mk I a) • (I.toCotangent b) = a • I.toCotangent b := rfl
-
 namespace IsLocalRing
 
 open Function
@@ -194,27 +190,22 @@ open Function
 variable {R S A : Type*} [CommRing R] [IsLocalRing R] [CommRing S] [IsLocalRing S]
     [CommRing A] [Algebra A R] [Algebra A S]
 
-set_option backward.isDefEq.respectTransparency false in
 theorem surjective_mapCotangent_of_surjective {f : R →ₐ[A] S} (h : Surjective f) :
     Surjective ((maximalIdeal R).mapCotangent (maximalIdeal S) f
       (((local_hom_TFAE f).out 0 3).mp h.isLocalHom)) := by
   have : IsLocalHom (f : R →+* S) := h.isLocalHom
   intro b; induction b using Submodule.Quotient.induction_on with
   | H z =>
-    rcases z with ⟨z, hz⟩
-    rcases h z with ⟨y, hy⟩
-    suffices y ∈ maximalIdeal R by
-      use (maximalIdeal R).toCotangent ⟨y, this⟩
-      simp_rw [← hy]; rfl
-    rw [← residue_eq_zero_iff, ← hy] at hz
-    change residue S ((f : R →+* S) y) = 0 at hz
+    rcases z with ⟨z, hz⟩; rcases h z with ⟨z, rfl⟩
+    suffices z ∈ maximalIdeal R by
+      use (maximalIdeal R).toCotangent ⟨z, this⟩
+      simp only [Ideal.mapCotangent_toCotangent]
+      congr
+    rw [← residue_eq_zero_iff] at hz
+    change residue S ((f : R →+* S) z) = 0 at hz
     rwa [← ResidueField.map_residue (f : R →+* S), ← RingHom.mem_ker,
       (RingHom.injective_iff_ker_eq_bot _).mp (show Injective (ResidueField.map (f : R →+* S)) from
         RingHom.injective _), Submodule.mem_bot, residue_eq_zero_iff] at hz
-
-@[simp]
-lemma residue_smul_toCotangent (r : R) (a : maximalIdeal R) :
-    residue R r • ((maximalIdeal R).toCotangent a) = r • (maximalIdeal R).toCotangent a := rfl
 
 end IsLocalRing
 
@@ -840,7 +831,7 @@ theorem surjective_residue_comp_pullbackFst_of_isSeparable [IsLocalRing Λ] [Mod
   obtain ⟨r, hr⟩ := Algebra.adjoin_eq_exists_aeval (𝓀 Λ) x ⟨y, hx y⟩
   obtain ⟨r, rfl⟩ := map_surjective (algebraMap Λ (𝓀 Λ)) IsLocalRing.residue_surjective r
   rw [aeval_map_algebraMap] at hr
-  exact ⟨aeval a r, ⟨⟨aeval b r, by simp [aeval_def, hab]⟩, by simpa [aeval_def, ha]⟩⟩
+  exact ⟨aeval a r, ⟨aeval b r, by simp [aeval_def, hab]⟩, by simpa [aeval_def, ha]⟩
 
 end LocAlgCat
 
@@ -1112,9 +1103,6 @@ instance isArtinianRing_pullback (f : A ⟶ C) (g : B ⟶ C) :
 abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.hom.toAlgHom) : BaseCat.{w} Λ k :=
   ⟨.ofPullback f.hom g.hom hg, inferInstance⟩
 
-lemma coe_obj_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.hom.toAlgHom) :
-    ((ofPullback f g hg).obj : Type w) = f.hom.toAlgHom.pullback g.hom.toAlgHom := rfl
-
 /-- xxxx -/
 abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.hom.toAlgHom) :
     ofPullback f g hg ⟶ A := ObjectProperty.homMk (LocAlgCat.fromOfPullback f.hom g.hom hg)
@@ -1135,11 +1123,11 @@ instance fromOfPullback_isSmallExtension (f : A ⟶ C) (g : B ⟶ C) [IsSmallExt
     refine ⟨⟨(0, x), this⟩, ?_, fun ⟨⟨a, b⟩, hab⟩ h ↦ ?_⟩
     · change _ = RingHom.ker (AlgHom.pullbackFst ..)
       ext ⟨⟨u, v⟩, h⟩
-      simp only [Ideal.mem_span_singleton', eq_comm, Subtype.exists, MulMemClass.mk_mul_mk,
-        Subtype.mk.injEq, AlgHom.mem_equalizer, AlgHom.coe_comp, Function.comp_apply,
-        AlgHom.fst_apply, AlgHom.snd_apply, exists_prop, Prod.exists, Prod.mk_mul_mk, mul_zero,
-        Prod.mk.injEq, and_left_comm, exists_and_left, RingHom.mem_ker, Subalgebra.coe_val,
-        and_iff_left_iff_imp]
+      simp only [LocAlgCat.coe_of, Ideal.mem_span_singleton', eq_comm, Subtype.exists,
+        MulMemClass.mk_mul_mk, Subtype.mk.injEq, AlgHom.mem_equalizer, AlgHom.coe_comp,
+        Function.comp_apply, AlgHom.fst_apply, AlgHom.snd_apply, exists_prop, Prod.exists,
+        Prod.mk_mul_mk, mul_zero, Prod.mk.injEq, and_left_comm, exists_and_left, RingHom.mem_ker,
+        Subalgebra.coe_val, and_iff_left_iff_imp]
       intro u_eq
       simp only [u_eq, AlgHom.mem_equalizer, AlgHom.coe_comp, Function.comp_apply,
         AlgHom.fst_apply, map_zero, AlgHom.snd_apply] at h
@@ -1183,26 +1171,25 @@ instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
     apply IsUnit.map (algebraMap A k) at hr
     rwa [← IsScalarTower.algebraMap_apply Λ A k r, isUnit_map_iff] at hr
 
-instance : Module k (𝔪 A).Cotangent := Module.compHom _ (A.residueEquiv.symm : k →+* 𝓀 A)
+instance : Module k (CotangentSpace A) := Module.compHom _ (A.residueEquiv.symm : k →+* 𝓀 A)
 
-lemma smul_cotangent_def (r : k) (x : (𝔪 A).Cotangent) : r • x = (A.residueEquiv.symm r) • x :=
+lemma smul_cotangent_def (r : k) (x : CotangentSpace A) : r • x = (A.residueEquiv.symm r) • x :=
   rfl
 
 @[simp]
-lemma residue_smul_toCotangent (a : A) (x : 𝔪 A) :
-    A.residue a • (𝔪 A).toCotangent x = a • (𝔪 A).toCotangent x := by
+lemma residue_smul_cotangent (a : A) (x : CotangentSpace A) : A.residue a • x = a • x := by
   rw [← residueEquiv_residue_apply, smul_cotangent_def, AlgEquiv.symm_apply_apply,
-    IsLocalRing.residue_smul_toCotangent]
+    ← IsLocalRing.ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul]
 
 /-- map between cotangent spaces -/
-def mapCotangent (f : A ⟶ B) : (𝔪 A).Cotangent →ₗ[k] (𝔪 B).Cotangent := .mk
+def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B := .mk
   ((𝔪 A).mapCotangent (𝔪 B) f.toAlgHom (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
   (by exact ⟨IsLocalHom.map_nonunit⟩))).toAddHom (fun r x ↦ by
     obtain ⟨s, hs⟩ := A.residue_surjective r
     obtain ⟨t, ht⟩ := B.residue_surjective r
     obtain ⟨x, rfl⟩ := (𝔪 A).toCotangent_surjective x
     nth_rw 1 [← hs, ← ht]
-    simp only [residue_smul_toCotangent, AddHom.toFun_eq_coe, LinearMap.coe_toAddHom,
+    simp only [residue_smul_cotangent, AddHom.toFun_eq_coe, LinearMap.coe_toAddHom,
       RingHom.id_apply, Ideal.mapCotangent_toCotangent, ← map_smul, Ideal.toCotangent_eq]
     simp only [SetLike.val_smul, smul_eq_mul, map_mul, ← sub_mul, pow_two]
     refine Ideal.mul_mem_mul ?_ ?_
@@ -1219,7 +1206,7 @@ def relCotangent (A : LocAlgCat.{w} Λ k) : Type _ := k ⊗[A] Ω[A⁄Λ]
 deriving Inhabited, AddCommGroup, Module k
 
 /-- Cotangent to relCotangent -/
-abbrev toRelCotangent (A : LocAlgCat.{w} Λ k) : (𝔪 A).Cotangent →ₗ[k] relCotangent A := sorry
+abbrev toRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k] relCotangent A := sorry
 
 end LocAlgCat
 
