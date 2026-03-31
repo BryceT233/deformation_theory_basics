@@ -184,6 +184,7 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 --------------------------------------------------------------------------------
 
 open Function in
+@[stacks 06S3 "(1)=>(2)"]
 theorem IsLocalRing.surjective_mapCotangent_of_surjective {R S A : Type*} [CommRing R]
     [IsLocalRing R] [CommRing S] [IsLocalRing S] [CommRing A] [Algebra A R] [Algebra A S]
     {f : R →ₐ[A] S} (h : Surjective f) : Surjective ((maximalIdeal R).mapCotangent
@@ -664,11 +665,6 @@ noncomputable abbrev ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [
     exact A.surj))
 
 @[simp]
-lemma coe_ofSurj (X : Type w) [CommRing X] [Nontrivial X] [Algebra A X] [Algebra Λ X]
-    [IsScalarTower Λ A X] (h : Surjective (algebraMap A X)) : (ofSurj A X h : Type w) = X :=
-  rfl
-
-@[simp]
 lemma residue_ofSurj (X : Type w) [CommRing X] [Nontrivial X] [Algebra A X] [Algebra Λ X]
     [IsScalarTower Λ A X] (h : Surjective (algebraMap A X)) (a : A) :
     (ofSurj A X h).residue (algebraMap A X a) = A.residue a := by
@@ -713,9 +709,6 @@ abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocA
   of Λ k (f.toAlgHom.pullback g.toAlgHom) (by
     simpa [RingHom.algebraMap_toAlgebra] using Surjective.comp A.surj
       (AlgHom.surjective_pullbackFst_of_surjective _ _ h))
-
-lemma coe_ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    (ofPullback f g hg : Type w) = f.toAlgHom.pullback g.toAlgHom := rfl
 
 @[simp]
 lemma residue_ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom)
@@ -833,7 +826,7 @@ lemma residue_smul_cotangent (a : A) (x : CotangentSpace A) : A.residue a • x 
   rw [← residueEquiv_residue_apply, smul_cotangent_def, AlgEquiv.symm_apply_apply,
     ← IsLocalRing.ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul]
 
-/-- map between cotangent spaces as a `k'-linear map -/
+/-- The canonical map between cotangent spaces, as a `k'-linear map -/
 def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B := .mk
   ((𝔪 A).mapCotangent (𝔪 B) f.toAlgHom (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
   (isLocalHom_toRingHom (Hom.toAlgHom f)))).toAddHom (fun r x ↦ by
@@ -850,11 +843,11 @@ def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B := 
       exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
         (isLocalHom_toRingHom (Hom.toAlgHom f)))
 
-/-- relative cotangent space for an object in `LocAlgCat`. -/
+/-- The relative cotangent space for an object in `LocAlgCat`. -/
 @[stacks 06GY]
 abbrev relCotangent (A : LocAlgCat.{w} Λ k) : Type _ := k ⊗[A] Ω[A⁄Λ]
 
-/-- the canonical map from cotangent space to relative cotangent space -/
+/-- The canonical map from cotangent space to relative cotangent space, as a `k`-linear map. -/
 def toRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k] relCotangent A where
   toFun x := kerCotangentToTensor Λ A k <| ((𝔪 A).mapCotangent (RingHom.ker (algebraMap A k))
     (AlgHom.id Λ A) (by rw [← ker_residue, Ideal.comap_idₐ, ← RingHom.ker_coe_toRingHom,
@@ -873,12 +866,24 @@ def toRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k] relCota
       ← TensorProduct.smul_tmul, Algebra.smul_def, ← residue_toRingHom, RingHom.coe_coe,
       residue_eq_zero_iff.mpr x.prop, zero_mul, TensorProduct.zero_tmul]
 
-/-- xxx -/
+/-- The canonical map between relative cotangent spaces, as a `k'-linear map. -/
+@[no_expose]
 def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
   letI : Algebra A B := f.toAlgHom.toRingHom.toAlgebra
   haveI : IsScalarTower Λ A B := IsScalarTower.of_algHom f.toAlgHom
-  let df := KaehlerDifferential.map Λ Λ A B
-  sorry
+  haveI : IsScalarTower A B k := .of_algebraMap_eq fun a ↦ by
+    rw [RingHom.algebraMap_toAlgebra, eq_comm, ← RingHom.comp_apply]
+    exact DFunLike.congr_fun f.residue_comp a
+  haveI : TensorProduct.CompatibleSMul B A k Ω[B⁄Λ] := ⟨fun a c ω ↦ by
+    rw [← IsScalarTower.algebraMap_smul B a c, ← IsScalarTower.algebraMap_smul B a ω,
+      ← TensorProduct.smul_tmul]⟩
+  letI F : k →ₗ[A] Ω[A⁄Λ] →ₗ[A] k ⊗[B] Ω[B⁄Λ] := .mk₂ A
+    (fun c ω ↦ c ⊗ₜ[B] KaehlerDifferential.map Λ Λ A B ω)
+    (fun _ _ _ ↦ by simp only [TensorProduct.add_tmul])
+    (fun _ _ _ ↦ by simp only [TensorProduct.smul_tmul'])
+    (fun _ _ _ ↦ by simp only [map_add, TensorProduct.tmul_add])
+    (fun _ _ _ ↦ by simp only; rw [map_smul, TensorProduct.smul_tmul', TensorProduct.smul_tmul])
+  (TensorProduct.lift F).extendScalarsOfSurjective A.surj
 
 end Cotangent
 
