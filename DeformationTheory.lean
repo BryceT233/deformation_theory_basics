@@ -140,10 +140,8 @@ theorem Submodule.length_le_restrictScalar (A R M : Type*) [CommRing A] [Ring R]
     Module.length R p ≤ Module.length A (p.restrictScalars A) := by
   rw [← WithBot.coe_le_coe, Module.coe_length, Module.coe_length]
   let e : Submodule R ↥p ↪o Submodule A ↥(restrictScalars A p) := restrictScalarsEmbedding A R p
-  have (q : Submodule A ↥(restrictScalars A p)) : Subsingleton (e ⁻¹' {q}) := ⟨by
-    rintro ⟨x, hx⟩ ⟨y, hy⟩
-    simp only [Subtype.mk.injEq]
-    apply e.injective; grind⟩
+  have (q : Submodule A ↥(restrictScalars A p)) : Subsingleton (e ⁻¹' {q}) :=
+    Set.Subsingleton.coe_sort <| Set.Subsingleton.preimage Set.subsingleton_singleton e.injective
   have : ∀ q : Submodule A ↥(restrictScalars A p), Order.krullDim (e ⁻¹' {q}) ≤ (0 : ℕ) := by
     intro p; by_cases h : Nonempty (e ⁻¹' {p})
     · simp [Order.krullDim_eq_zero]
@@ -151,13 +149,17 @@ theorem Submodule.length_le_restrictScalar (A R M : Type*) [CommRing A] [Ring R]
     simp [Order.krullDim_eq_bot]
   simpa using Order.krullDim_le_of_krullDim_preimage_le' e e.monotone this
 
+lemma ENat.lt_add_left {n k : ℕ∞} (h : n ≠ ⊤) (h' : 0 < k) : n < k + n := by
+  nth_rw 1 [← zero_add n, ENat.add_lt_add_iff_right h]
+  exact h'
+
 theorem Submodule.length_quotient_lt {R M : Type*} [Ring R] [AddCommGroup M] [Module R M]
     [IsArtinian R M] [IsNoetherian R M] (p : Submodule R M) (h : p ≠ ⊥) :
     Module.length R (M ⧸ p) < Module.length R M := by
   rw [Module.length_eq_add_of_exact p.subtype p.mkQ p.subtype_injective p.mkQ_surjective
     (LinearMap.exact_subtype_mkQ p)]
-  nth_rw 1 [← zero_add (Module.length R (M ⧸ p)), ENat.add_lt_add_iff_right Module.length_ne_top]
-  exact Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h)
+  exact ENat.lt_add_left Module.length_ne_top
+    (Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h))
 
 --------------------------------------------------------------------------------
 
@@ -183,6 +185,8 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 
 --------------------------------------------------------------------------------
 
+-- goes to Ideal.Cotangent.lean
+
 open Function in
 @[stacks 06S3 "(1)=>(2)"]
 theorem IsLocalRing.surjective_mapCotangent_of_surjective {R S A : Type*} [CommRing R]
@@ -198,10 +202,16 @@ theorem IsLocalRing.surjective_mapCotangent_of_surjective {R S A : Type*} [CommR
       simp only [Ideal.mapCotangent_toCotangent]
       congr
     rw [← residue_eq_zero_iff] at hz
-    change residue S ((f : R →+* S) z) = 0 at hz
-    rwa [← ResidueField.map_residue (f : R →+* S), ← RingHom.mem_ker,
-      (RingHom.injective_iff_ker_eq_bot _).mp (show Injective (ResidueField.map (f : R →+* S)) from
-        RingHom.injective _), Submodule.mem_bot, residue_eq_zero_iff] at hz
+    nth_rw 2 [← RingHom.coe_coe] at hz
+    rwa [← ResidueField.map_residue, ← RingHom.mem_ker, (RingHom.injective_iff_ker_eq_bot _).mp
+      (show Injective (ResidueField.map (f : R →+* S)) from RingHom.injective _),
+      Submodule.mem_bot, residue_eq_zero_iff] at hz
+/-
+open Function in
+theorem IsLocalRing.tmp {R S A : Type*} [CommRing R] [IsNoetherianRing R] [IsLocalRing R]
+    [IsAdicComplete (maximalIdeal R) R] [CommRing S] [IsNoetherianRing S] [IsLocalRing S]
+    [IsAdicComplete (maximalIdeal S) S] [CommRing A] [Algebra A R] [Algebra A S]
+    {f : R →ₐ[A] S} :-/
 
 --------------------------------------------------------------------------------
 
@@ -427,16 +437,14 @@ theorem IsLocalRing.eq_of_eval_eq_zero_of_not_isUnit_sub {R : Type*} [CommRing R
 
 /-! # The Category of Local Algebras with a Fixed Residue Field
 
-* `DeformationTheory.LocAlgCat` : The type of objects in the category of local `Λ`-algebras
+* `LocAlgCat` : The type of objects in the category of local `Λ`-algebras
   with residue field `k`. An object of `LocAlgCat` consists of a local `Λ`-algebra `A` equipped
   with a surjective residue map to `k`.
 
-* `DeformationTheory.LocAlgCat.Hom` : The type of morphisms between objects in `LocAlgCat Λ k`.
+* `LocAlgCat.Hom` : The type of morphisms between objects in `LocAlgCat Λ k`.
   A morphism `f : A ⟶ B` is a local `Λ`-algebra homomorphism compatible with the residue maps.
 
 -/
-
-namespace DeformationTheory
 
 open IsLocalRing CategoryTheory Function
 
@@ -451,8 +459,8 @@ structure LocAlgCat (Λ : Type u) (k : Type v) [CommRing Λ] [Field k] [Algebra 
   carrier : Type w
   [commRing : CommRing carrier]
   [localRing : IsLocalRing carrier]
-  [baseAlg : Algebra Λ carrier]
-  [residueAlg : Algebra carrier k]
+  [baseAlgebra : Algebra Λ carrier]
+  [residueAlgebra : Algebra carrier k]
   [scalarTower : IsScalarTower Λ carrier k]
   surj : Surjective (algebraMap carrier k)
 
@@ -465,9 +473,10 @@ variable [CommRing Z] [IsLocalRing Z] [Algebra Λ Z] [Algebra Z k] [IsScalarTowe
 variable {hX : Surjective (algebraMap X k)} {hY : Surjective (algebraMap Y k)}
   {hZ : Surjective (algebraMap Z k)}
 
-attribute [instance] localRing commRing baseAlg scalarTower residueAlg
+attribute [instance] localRing commRing baseAlgebra scalarTower residueAlgebra
 
-initialize_simps_projections LocAlgCat (-localRing, -commRing, -baseAlg, -residueAlg, -scalarTower)
+initialize_simps_projections LocAlgCat (-localRing, -commRing, -baseAlgebra, -residueAlgebra,
+-scalarTower)
 
 instance : CoeSort (LocAlgCat Λ k) (Type w) := ⟨carrier⟩
 
@@ -479,10 +488,6 @@ def residue (A : LocAlgCat Λ k) : A →ₐ[Λ] k :=
   IsScalarTower.toAlgHom Λ A k
 
 lemma residue_toRingHom : A.residue = algebraMap A k := rfl
-
-@[simp]
-lemma residue_algebraMap_apply {r : Λ} : A.residue (algebraMap Λ A r) = algebraMap Λ k r := by
-  simp [residue]
 
 lemma ker_residue : RingHom.ker (residue A) = 𝔪 A :=
   eq_maximalIdeal (RingHom.ker_isMaximal_of_surjective _ A.surj)
@@ -510,7 +515,7 @@ lemma of_coe (A : LocAlgCat.{w} Λ k) : of Λ k A A.surj = A := rfl
 @[simp]
 lemma residue_of_apply {x : (of Λ k X hX)} : (of Λ k X hX).residue x = algebraMap X k x := rfl
 
-/-- The canonical equivalence between the residue field of an object in `LocAlgCat` and `k`. -/
+/-- The canonical equivalence between the residue field of an object and `k`. -/
 def residueEquiv (A : LocAlgCat Λ k) : 𝓀 A ≃ₐ[Λ] k where
   __ := (Ideal.quotEquivOfEq (ker_residue (A := A)).symm).trans
     (RingHom.quotientKerEquivOfSurjective A.residue_surjective)
@@ -541,10 +546,7 @@ instance : Category (LocAlgCat.{w} Λ k) where
 
 instance : FunLike (Hom A B) A B where
   coe f := f.toAlgHom
-  coe_injective' f g h := by
-    rcases f with ⟨f, _⟩
-    rcases g with ⟨g, _⟩
-    simpa using h
+  coe_injective' _ _ := by simpa using Hom.ext
 
 instance : ConcreteCategory (LocAlgCat.{w} Λ k) Hom where
   hom := id
@@ -633,7 +635,7 @@ def ofIso (i : A ≅ B) : A ≃ₐ[Λ] B where
   right_inv x := by simp
 
 @[simp]
-lemma mapAlgEquiv_ofIso_trans_e (i : A ≅ B) : B.residue.comp (ofIso i) = A.residue := by
+lemma residue_comp_coe_ofIso (i : A ≅ B) : B.residue.comp (ofIso i) = A.residue := by
   ext
   simpa using DFunLike.congr_fun i.hom.residue_comp _
 
@@ -642,7 +644,7 @@ the same as isomorphisms in `LocAlgCat`. -/
 @[simps]
 def isoEquivSubtypeAlgEquiv : (of Λ k X hX ≅ of Λ k Y hY) ≃
     { e : X ≃ₐ[Λ] Y // (of Λ k Y hY).residue.comp e = (of Λ k X hX).residue } where
-  toFun i := ⟨ofIso i, mapAlgEquiv_ofIso_trans_e i⟩
+  toFun i := ⟨ofIso i, residue_comp_coe_ofIso i⟩
   invFun f := isoMk f.val f.prop
 
 ----------------------------------------------------------------------------------------------
@@ -809,7 +811,7 @@ section Cotangent
 open KaehlerDifferential
 open scoped TensorProduct
 
-variable {A B : LocAlgCat.{w} Λ k}
+variable {A B : LocAlgCat.{w} Λ k} {f : A ⟶ B}
 
 instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
   map_nonunit r hr := by
@@ -826,7 +828,7 @@ lemma residue_smul_cotangent (a : A) (x : CotangentSpace A) : A.residue a • x 
   rw [← residueEquiv_residue_apply, smul_cotangent_def, AlgEquiv.symm_apply_apply,
     ← IsLocalRing.ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul]
 
-/-- The canonical map between cotangent spaces, as a `k'-linear map -/
+/-- The canonical map between cotangent spaces, as a `k`-linear map -/
 def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B := .mk
   ((𝔪 A).mapCotangent (𝔪 B) f.toAlgHom (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
   (isLocalHom_toRingHom (Hom.toAlgHom f)))).toAddHom (fun r x ↦ by
@@ -866,8 +868,13 @@ def toRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k] relCota
       ← TensorProduct.smul_tmul, Algebra.smul_def, ← residue_toRingHom, RingHom.coe_coe,
       residue_eq_zero_iff.mpr x.prop, zero_mul, TensorProduct.zero_tmul]
 
+/-- xxxx -/
+abbrev tmp [IsLocalRing Λ] [Module.Finite Λ k] (A : LocAlgCat.{w} Λ k) :
+    k ⊗[𝓀 Λ] CotangentSpace Λ →ₗ[k] CotangentSpace A := sorry
+
+/--/
+
 /-- The canonical map between relative cotangent spaces, as a `k'-linear map. -/
-@[no_expose]
 def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
   letI : Algebra A B := f.toAlgHom.toRingHom.toAlgebra
   haveI : IsScalarTower Λ A B := IsScalarTower.of_algHom f.toAlgHom
@@ -885,11 +892,15 @@ def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
     (fun _ _ _ ↦ by simp only; rw [map_smul, TensorProduct.smul_tmul', TensorProduct.smul_tmul])
   (TensorProduct.lift F).extendScalarsOfSurjective A.surj
 
+@[stacks 06S3 "(2)=>(3)"]
+theorem surjective_mapRelCotangent_of_surjective_mapCotangent (hf : Surjective (mapCotangent f)) :
+    Surjective (mapRelCotangent f) := by sorry
+
 end Cotangent
 
-end LocAlgCat
 /--/
------------------------------------------------------------------------------------------
+
+end LocAlgCat
 
 /-- The complete base category for deformation theory over `Λ`. This is the full subcategory of
 `LocAlgCat Λ k` consisting of complete Noetherian local `Λ`-algebras with residue field `k`. -/
@@ -897,9 +908,13 @@ abbrev CBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k
   ObjectProperty.FullSubcategory fun A : LocAlgCat.{w} Λ k ↦
     IsNoetherianRing A ∧ IsAdicComplete (𝔪 A) A
 
+namespace CBaseCat
+
 instance {A : CBaseCat Λ k} : IsNoetherianRing A.obj := A.property.left
 
 instance {A : CBaseCat Λ k} : IsAdicComplete (𝔪 A.obj) A.obj := A.property.right
+
+end CBaseCat
 
 /-- The base category for deformation theory over `Λ`. This is the full subcategory of
 `LocAlgCat Λ k` consisting of Artinian local `Λ`-algebras with residue field `k`. -/
@@ -907,9 +922,9 @@ instance {A : CBaseCat Λ k} : IsAdicComplete (𝔪 A.obj) A.obj := A.property.r
 abbrev BaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :=
   ObjectProperty.FullSubcategory fun A : LocAlgCat.{w} Λ k ↦ IsArtinianRing A
 
-instance (A : BaseCat Λ k) : IsArtinianRing A.obj := A.property
-
 namespace BaseCat
+
+instance (A : BaseCat Λ k) : IsArtinianRing A.obj := A.property
 
 /-- The natural inclusion functor from the base category to the complete base category. -/
 abbrev ιToCBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :
@@ -1212,5 +1227,3 @@ abbrev ofPullbackOfIsSeparable [Algebra.IsSeparable (𝓀 Λ) k] (f : A ⟶ C) (
 end
 
 end BaseCat
-
-end DeformationTheory
