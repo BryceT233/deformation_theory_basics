@@ -13,25 +13,6 @@ noncomputable section
 
 universe w v u
 
-/-! # `IsLocalHom` instances for `AlgHom`
-goes to `RingTheory/LocalRing/RingHom/Basic.lean`-/
-
-section AlgHom
-
-variable {R S T : Type*} [Semiring R] [Semiring S] [Semiring T]
-variable {A : Type*} [CommSemiring A] [Algebra A R] [Algebra A S] [Algebra A T]
-
-variable (A) in
-instance isLocalHom_algHomId : IsLocalHom (AlgHom.id A R) := ⟨fun _ ↦ id⟩
-
-instance AlgHom.isLocalHom_comp (f : R →ₐ[A] S) (g : S →ₐ[A] T) [IsLocalHom f] [IsLocalHom g] :
-    IsLocalHom (g.comp f) where
-  map_nonunit a := IsLocalHom.map_nonunit a ∘ IsLocalHom.map_nonunit (f := g) (f a)
-
-end AlgHom
-
---------------------------------------------------------------------------------
-
 instance (priority := 100) {R : Type*} [CommRing R] [IsArtinianRing R] [IsLocalRing R] :
     IsAdicComplete (IsLocalRing.maximalIdeal R) R where
   prec' f hf := by
@@ -91,7 +72,7 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
 
 --------------------------------------------------------------------------------
 
--- goes to Ideal.Cotangent.lean
+-- goes to Ideal/Cotangent.lean
 
 open Function in
 @[stacks 06S3 "(1)=>(2)"]
@@ -131,10 +112,6 @@ theorem isUnit_eqLocus_mk_iff {R S : Type*} [Ring R] [Semiring S] (f g : R →+*
   refine ⟨s, hs.left, ?_, hs.right⟩
   rw [← mul_one (f s), ← map_one g, ← hs.left, map_mul, ← mul_assoc, ← r_in, ← map_mul, hs.right,
     map_one, one_mul]
-
-instance isLocalHom_eqLocus_subtype {R S : Type*} [Ring R] [Semiring S] (f g : R →+* S) :
-    IsLocalHom (f.eqLocus g).subtype where
-  map_nonunit := by rintro ⟨_, h⟩; simpa using (RingHom.isUnit_eqLocus_mk_iff f g h).mpr
 
 instance isLocalRing_eqLocus {R S : Type*} [Ring R] [Semiring S] [IsLocalRing R] (f g : R →+* S) :
     IsLocalRing (f.eqLocus g) :=
@@ -181,33 +158,14 @@ open Function in
 theorem surjective_pullbackSnd_of_surjective (f : R →+* T) (g : S →+* T) (h : Surjective f) :
     Surjective (f.pullbackSnd g) := fun s ↦ by simpa [eq_comm] using h (g s)
 
-instance isLocalHom_pullbackFst {F G : Type*} [FunLike F R T] [RingHomClass F R T] [FunLike G S T]
-    [RingHomClass G S T] (f : F) (g : G) [IsLocalHom g] :
-      IsLocalHom ((f : R →+* T).pullbackFst (g : S →+* T)) where
-  map_nonunit := by
-    rintro ⟨x, x_in⟩
-    simp only [coe_comp, coe_fst, Subring.coe_subtype, Function.comp_apply, isUnit_pullback_mk_iff,
-      imp_and, imp_self, true_and]
-    simp only [mem_eqLocus, coe_comp, coe_coe, coe_fst, Function.comp_apply, coe_snd] at x_in
-    intro ha
-    suffices IsUnit (g x.2) from IsLocalHom.map_nonunit x.2 this
-    rw [← x_in]; exact IsUnit.map f ha
+end pullback
 
-instance isLocalHom_pullbackSnd {F G : Type*} [FunLike F R T] [RingHomClass F R T] [FunLike G S T]
-    [RingHomClass G S T] (f : F) (g : G) [IsLocalHom f] :
-      IsLocalHom ((f : R →+* T).pullbackSnd (g : S →+* T)) where
-  map_nonunit := by
-    rintro ⟨x, x_in⟩
-    simp only [coe_comp, coe_snd, Subring.coe_subtype, Function.comp_apply, isUnit_pullback_mk_iff,
-      imp_and, imp_self, and_true]
-    simp only [mem_eqLocus, coe_comp, coe_coe, coe_fst, Function.comp_apply, coe_snd] at x_in
-    intro ha
-    suffices IsUnit (f x.1) from IsLocalHom.map_nonunit x.1 this
-    rw [x_in]; exact IsUnit.map g ha
+end RingHom
 
-instance isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semiring T]
+open RingHom in
+theorem isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semiring T]
     [IsLocalRing R] [FunLike F R T] [RingHomClass F R T] [FunLike G S T] [RingHomClass G S T]
-    (f : F) (g : G) [IsLocalHom g] :
+    (f : F) (g : G) (hg : IsLocalHom g) :
     IsLocalRing (RingHom.pullback (f : R →+* T) (g : S →+* T)) where
   isUnit_or_isUnit_of_add_one {a b} h := by
     rcases a with ⟨⟨u, v⟩, huv⟩; rcases b with ⟨⟨s, t⟩, hst⟩
@@ -222,10 +180,6 @@ instance isLocalRing_ringHomPullback {R S T F G : Type*} [Ring R] [Ring S] [Semi
     have : IsUnit (g t) := by rw [← hst]; exact IsUnit.map f hs
     apply IsLocalHom.map_nonunit at this
     right; simpa [isUnit_pullback_mk_iff] using ⟨hs, this⟩
-
-end pullback
-
-end RingHom
 
 namespace RingEquiv
 
@@ -267,12 +221,6 @@ theorem isUnit_pullback_mk_iff (f : A →ₐ[R] C) (g : B →ₐ[R] C) {a : A ×
       IsUnit a.1 ∧ IsUnit a.2 :=
   RingHom.isUnit_pullback_mk_iff (f : A →+* C) (g : B →+* C) a_in
 
-instance isLocalHom_pullbackFst (f : A →ₐ[R] C) (g : B →ₐ[R] C) [IsLocalHom g] :
-    IsLocalHom (pullbackFst f g) := ⟨(RingHom.isLocalHom_pullbackFst f g).map_nonunit⟩
-
-instance isLocalHom_pullbackSnd (f : A →ₐ[R] C) (g : B →ₐ[R] C) [IsLocalHom f] :
-    IsLocalHom (pullbackSnd f g) := ⟨(RingHom.isLocalHom_pullbackSnd f g).map_nonunit⟩
-
 theorem surjective_pullbackFst_of_surjective (f : A →ₐ[R] C) (g : B →ₐ[R] C)
     (h : Function.Surjective g) : Function.Surjective (pullbackFst f g) :=
   RingHom.surjective_pullbackFst_of_surjective (f : A →+* C) (g : B →+* C) h
@@ -285,10 +233,10 @@ end Ring
 
 end AlgHom
 
-instance isLocalRing_algHomPullback {R S T A : Type*} [CommSemiring R] [Ring S] [Algebra R S]
+theorem isLocalRing_algHomPullback {R S T A : Type*} [CommSemiring R] [Ring S] [Algebra R S]
     [IsLocalRing S] [Ring T] [Algebra R T] [Semiring A] [Algebra R A] (f : S →ₐ[R] A)
-    (g : T →ₐ[R] A) [IsLocalHom g] : IsLocalRing (AlgHom.pullback f g) :=
-  inferInstanceAs <| IsLocalRing (RingHom.pullback (f : S →+* A) (g : T →+* A))
+    (g : T →ₐ[R] A) (hg : IsLocalHom g) : IsLocalRing (AlgHom.pullback f g) :=
+  isLocalRing_ringHomPullback (f : S →+* A) (g : T →+* A) ⟨hg.map_nonunit⟩
 
 --------------------------------------------------------------------------------
 
@@ -421,17 +369,14 @@ compatible with the residue maps. -/
 structure Hom (A B : LocAlgCat.{w} Λ k) where
   /-- The underlying algebra map. -/
   toAlgHom : A →ₐ[Λ] B
-  [localhom : IsLocalHom toAlgHom]
+  comap_maximalIdeal : (maximalIdeal B).comap toAlgHom = maximalIdeal A
   residue_comp : B.residue.comp toAlgHom = A.residue
-
-attribute [instance] Hom.localhom
-
-initialize_simps_projections Hom (-localhom)
 
 instance : Category (LocAlgCat.{w} Λ k) where
   Hom A B := Hom A B
-  id A := ⟨AlgHom.id Λ A, by simp⟩
+  id A := ⟨AlgHom.id Λ A, by simp, by simp⟩
   comp {A B C} f g := ⟨g.toAlgHom.comp f.toAlgHom, by
+    rw [← Ideal.comap_comapₐ, g.comap_maximalIdeal, f.comap_maximalIdeal] , by
     rw [← AlgHom.comp_assoc, g.residue_comp, f.residue_comp]⟩
 
 instance : FunLike (Hom A B) A B where
@@ -443,15 +388,17 @@ instance : ConcreteCategory (LocAlgCat.{w} Λ k) Hom where
   ofHom := id
 
 /-- Typecheck an `AlgHom` compatible with residue maps as a morphism in `LocAlgCat`. -/
-abbrev ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f] (hf : (of Λ k Y hY).residue.comp f =
-    (of Λ k X hX).residue) : of Λ k X hX ⟶ of Λ k Y hY := ⟨f, hf⟩
+abbrev ofHom (f : X →ₐ[Λ] Y) (h : (maximalIdeal Y).comap f = maximalIdeal X)
+    (h' : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) :
+    of Λ k X hX ⟶ of Λ k Y hY := ⟨f, h, h'⟩
 
 @[simp]
-lemma toAlgHom_ofHom (f : X →ₐ[Λ] Y) [IsLocalHom f] (hf : (of Λ k Y hY).residue.comp f =
-    (of Λ k X hX).residue) : (ofHom f hf).toAlgHom = f := rfl
+lemma toAlgHom_ofHom (f : X →ₐ[Λ] Y) (h : (maximalIdeal Y).comap f = maximalIdeal X)
+    (h' : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) :
+  (ofHom f h h').toAlgHom = f := rfl
 
 @[simp]
-lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.residue_comp = f := rfl
+lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.comap_maximalIdeal f.residue_comp = f := rfl
 
 @[simp]
 lemma hom_id : (𝟙 A : A ⟶ A).toAlgHom = AlgHom.id Λ A := rfl
@@ -466,16 +413,19 @@ lemma hom_comp (f : A ⟶ B) (g : B ⟶ C) : (f ≫ g).toAlgHom = g.toAlgHom.com
 lemma comp_apply (f : A ⟶ B) (g : B ⟶ C) (a : A) : (f ≫ g) a = g (f a) := by simp
 
 @[simp]
-lemma ofHom_id : ofHom (.id Λ X) (by simp) = 𝟙 (of Λ k X hX) := rfl
+lemma ofHom_id : ofHom (.id Λ X) (by simp) (by simp) = 𝟙 (of Λ k X hX) := rfl
 
 @[simp]
-lemma ofHom_comp (f : X →ₐ[Λ] Y) [IsLocalHom f] (g : Y →ₐ[Λ] Z) [IsLocalHom g]
-    (hf : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue)
-    (hg : (of Λ k Z hZ).residue.comp g = (of Λ k Y hY).residue) :
-    ofHom (g.comp f) (by rw [← AlgHom.comp_assoc, hg, hf]) = ofHom f hf ≫ ofHom g hg := rfl
+lemma ofHom_comp (f : X →ₐ[Λ] Y) (hf : (maximalIdeal Y).comap f = maximalIdeal X)
+    (hf' : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) (g : Y →ₐ[Λ] Z)
+    (hg : (maximalIdeal Z).comap g = maximalIdeal Y)
+    (hg' : (of Λ k Z hZ).residue.comp g = (of Λ k Y hY).residue) : ofHom (g.comp f)
+      (by rw [← Ideal.comap_comapₐ, hg, hf] ) (by rw [← AlgHom.comp_assoc, hg', hf']) =
+        ofHom f hf hf' ≫ ofHom g hg hg' := rfl
 
-lemma ofHom_apply (f : X →ₐ[Λ] Y) [IsLocalHom f] (x : X)
-    (hf : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) : ofHom f hf x = f x := rfl
+lemma ofHom_apply (f : X →ₐ[Λ] Y) (h : (maximalIdeal Y).comap f = maximalIdeal X)
+    (h' : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) (x : X) :
+    ofHom f h h' x = f x := rfl
 
 lemma inv_hom_apply (e : A ≅ B) (x : A) : e.inv (e.hom x) = x := by simp
 
@@ -490,8 +440,6 @@ instance : Algebra Λ ((forget (LocAlgCat.{w} Λ k)).obj A) := inferInstanceAs <
 
 instance : IsLocalRing ((forget (LocAlgCat.{w} Λ k)).obj A) := inferInstanceAs <| IsLocalRing A
 
-instance (f : A ⟶ B) : IsLocalHom ((forget (LocAlgCat.{w} Λ k)).map f) := ⟨f.localhom.map_nonunit⟩
-
 instance hasForgetToCommAlgCat : HasForget₂ (LocAlgCat.{w} Λ k) (CommAlgCat.{w} Λ) where
   forget₂.obj A := .of Λ A
   forget₂.map f := CommAlgCat.ofHom f.toAlgHom
@@ -504,20 +452,15 @@ lemma forget₂_commAlgCat_obj (A : LocAlgCat.{w} Λ k) :
 lemma forget₂_commAlgCat_map (f : A ⟶ B) :
     (forget₂ (LocAlgCat.{w} Λ k) (CommAlgCat.{w} Λ)).map f = CommAlgCat.ofHom f.toAlgHom := rfl
 
-/-- Build an isomorphism in the category `LocAlgCat Λ k` from
-an `AlgEquiv` between `Λ`-algebras. -/
+/-- Build an isomorphism in the category `LocAlgCat` from an `AlgEquiv` between `Λ`-algebras. -/
 @[simps]
 def isoMk {X Y : Type w} {_ : CommRing X} {_ : IsLocalRing X} {_ : Algebra Λ X} {_ : CommRing Y}
     {_ : IsLocalRing Y} {_ : Algebra Λ Y} {_ : Algebra X k} {_ : Algebra Y k}
     {_ : IsScalarTower Λ X k} {_ : IsScalarTower Λ Y k} {hX : Surjective (algebraMap X k)}
     {hY : Surjective (algebraMap Y k)} (e : X ≃ₐ[Λ] Y) (he : (of Λ k Y hY).residue.comp e =
       (of Λ k X hX).residue) : of Λ k X hX ≅ of Λ k Y hY where
-  hom :=
-    letI : IsLocalHom (e : X →ₐ[Λ] Y) := ⟨by simp⟩
-    ofHom (e : X →ₐ[Λ] Y) (by rw [← he])
-  inv :=
-    letI : IsLocalHom (e.symm : Y →ₐ[Λ] X) := ⟨by simp⟩
-    ofHom (e.symm : Y →ₐ[Λ] X) (by ext; simp [← he])
+  hom := ofHom (e : X →ₐ[Λ] Y) (by ext; simp) (by rw [← he])
+  inv := ofHom (e.symm : Y →ₐ[Λ] X) (by ext; simp) (by ext; simp [← he])
   inv_hom_id := by simp [← ofHom_comp]
   hom_inv_id := by simp [← ofHom_comp]
 
@@ -587,8 +530,7 @@ noncomputable abbrev toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X]
     rw [RingHom.algebraMap_toAlgebra, IsScalarTower.algebraMap_apply Λ A X,
       RingHom.liftOfSurjective_comp_apply]
     simp [IsScalarTower.algebraMap_apply Λ A k]
-  letI : IsLocalHom (IsScalarTower.toAlgHom Λ A X) := ⟨h.isLocalHom.map_nonunit⟩
-  ofHom (IsScalarTower.toAlgHom Λ A X)
+  ofHom (IsScalarTower.toAlgHom Λ A X) (eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _ h))
     (by ext; simpa [residue] using residue_ofSurj_algebraMap_apply ..)
 
 @[simp]
@@ -604,6 +546,8 @@ abbrev ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocA
     (A.residue.comp (f.toAlgHom.pullbackFst g.toAlgHom)).toAlgebra
   letI : IsScalarTower Λ (f.toAlgHom.pullback g.toAlgHom) k := .of_algebraMap_eq (by
     simp [RingHom.algebraMap_toAlgebra])
+  letI : IsLocalRing ↥(f.toAlgHom.pullback g.toAlgHom) :=
+    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨h.isLocalHom.map_nonunit⟩
   of Λ k (f.toAlgHom.pullback g.toAlgHom) (by
     simpa [RingHom.algebraMap_toAlgebra] using Surjective.comp A.surj
       (AlgHom.surjective_pullbackFst_of_surjective _ _ h))
@@ -614,8 +558,12 @@ lemma residue_ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom)
   simp [residue, RingHom.algebraMap_toAlgebra]
 
 /-- Upgrades the first projection map from the pullback algebra to a morphism in `LocAlgCat`. -/
-abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
-    ofPullback f g hg ⟶ A := .mk (f.toAlgHom.pullbackFst g.toAlgHom) rfl
+abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) :
+    ofPullback f g h ⟶ A :=
+  letI : IsLocalRing ↥(f.toAlgHom.pullback g.toAlgHom) :=
+    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨h.isLocalHom.map_nonunit⟩
+  .mk (f.toAlgHom.pullbackFst g.toAlgHom) (eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _
+    (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom h))) rfl
 
 open Polynomial in
 private lemma not_isUnit_aeval_of_aeval_eq_zero [IsLocalRing Λ] [Algebra.IsIntegral Λ k] (x : k)
@@ -812,11 +760,6 @@ open scoped TensorProduct
 
 variable {f : A ⟶ B}
 
-instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
-  map_nonunit r hr := by
-    apply IsUnit.map (algebraMap A k) at hr
-    rwa [← IsScalarTower.algebraMap_apply Λ A k r, isUnit_map_iff] at hr
-
 instance : IsScalarTower Λ (ResidueField A) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
   rw [IsScalarTower.algebraMap_apply Λ A, IsScalarTower.algebraMap_smul,
     IsScalarTower.algebraMap_smul]
@@ -853,14 +796,15 @@ instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
 to the cotangent space of `A`, induced by the algebra structure map. -/
-abbrev baseCotangentMap [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] [Algebra.IsIntegral Λ k]
-    (A : LocAlgCat.{w} Λ k) : k ⊗[ResidueField Λ] CotangentSpace Λ →ₗ[k] CotangentSpace A :=
-  letI F : Λ →ₐ[Λ] A := Algebra.ofId Λ A
-  haveI : IsLocalHom (F : Λ →+* A) := inferInstanceAs <| IsLocalHom (algebraMap Λ A)
+abbrev baseCotangentMap [IsLocalRing Λ] (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ)
+    [Algebra.IsIntegral Λ k] (A : LocAlgCat.{w} Λ k) :
+    k ⊗[ResidueField Λ] CotangentSpace Λ →ₗ[k] CotangentSpace A :=
   letI baseMap : CotangentSpace Λ →ₗ[ResidueField Λ] CotangentSpace A :=
-    ((maximalIdeal Λ).mapCotangent (maximalIdeal A) F
-      (((IsLocalRing.local_hom_TFAE (F : Λ →+* A)).out 0 3).mp ‹_›)).extendScalarsOfSurjective
-        (show Surjective (algebraMap Λ (ResidueField Λ)) from IsLocalRing.residue_surjective)
+    ((maximalIdeal Λ).mapCotangent (maximalIdeal A) (Algebra.ofId Λ A) (by
+      change _ ≤ Ideal.comap (algebraMap Λ A) _
+      rw [← h, IsScalarTower.algebraMap_eq Λ A, ← Ideal.comap_comap,
+        eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _ A.surj)])).extendScalarsOfSurjective
+    IsLocalRing.residue_surjective
   TensorProduct.AlgebraTensorModule.lift (LinearMap.toSpanSingleton k _ baseMap)
 
 /-- The relative cotangent space for an object in `LocAlgCat`. -/
@@ -888,13 +832,14 @@ def toRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k] relCota
 
 theorem surjective_toRelCotangent : Surjective A.toRelCotangent := sorry
 
-theorem exact_baseCotangentMap_toRelCotangent [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
-    [Algebra.IsIntegral Λ k]: Exact A.baseCotangentMap A.toRelCotangent := sorry
+theorem exact_baseCotangentMap_toRelCotangent [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
+    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
+    Exact (A.baseCotangentMap h) A.toRelCotangent := sorry
 
 /-- The canonical `k`-linear map between cotangent spaces. -/
 def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B where
   toFun x := (maximalIdeal A).mapCotangent (maximalIdeal B) f.toAlgHom
-    (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp (isLocalHom_toRingHom f.toAlgHom)) x
+    (by rw [f.comap_maximalIdeal]) x
   map_add' := by simp
   map_smul' r x := by
     obtain ⟨s, hs⟩ := A.residue_surjective r
@@ -907,11 +852,11 @@ def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B whe
     refine Ideal.mul_mem_mul ?_ ?_
     · rwa [← residue_eq_zero_iff, map_sub, sub_eq_zero, ← AlgHom.comp_apply, f.residue_comp, ht]
     · rw [← Ideal.mem_comap]; convert x.prop
-      exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
-        (isLocalHom_toRingHom (Hom.toAlgHom f))
+      exact f.comap_maximalIdeal
 
-theorem mapCotangent_comp_baseCotangentMap [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
-    [Algebra.IsIntegral Λ k] : (mapCotangent f).comp A.baseCotangentMap = B.baseCotangentMap := by
+theorem mapCotangent_comp_baseCotangentMap [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
+    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
+    (mapCotangent f).comp (A.baseCotangentMap h) = B.baseCotangentMap h := by
   sorry
 
 /-- The canonical `k`-linear map between relative cotangent spaces. -/
