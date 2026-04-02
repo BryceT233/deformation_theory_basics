@@ -11,7 +11,7 @@ public import Mathlib
 
 noncomputable section
 
-universe w w' v u
+universe w v u
 
 /-! # `IsLocalHom` instances for `AlgHom`
 goes to `RingTheory/LocalRing/RingHom/Basic.lean`-/
@@ -334,7 +334,7 @@ theorem AlgEquiv.subsingleton_of_surjective {A R S : Type*} [CommSemiring A] [Se
 theorem Polynomial.exists_mul_sq_add_linear_part_eq_eval_add {R : Type*} [CommSemiring R]
     (p : Polynomial R) (x y : R) : ∃ c : R, c * y ^ 2 + p.derivative.eval x * y + p.eval x =
       p.eval (x + y) := by
-  rw [show x + y = y + x from add_comm .., ← p.taylor_eval x y, ((taylor x) p).eval_eq_sum_range'
+  rw [add_comm, ← p.taylor_eval x y, ((taylor x) p).eval_eq_sum_range'
     ((Nat.lt_succ_self _).trans (Nat.lt_succ_self _)), Finset.sum_range_succ',
     Finset.sum_range_succ']
   use ∑ x_1 ∈ Finset.range p.natDegree, ((taylor x) p).coeff (x_1 + 1 + 1) * y ^ x_1
@@ -414,6 +414,8 @@ def residue (A : LocAlgCat Λ k) : A →ₐ[Λ] k :=
   IsScalarTower.toAlgHom Λ A k
 
 lemma residue_toRingHom : A.residue = algebraMap A k := rfl
+
+lemma residue_apply {a : A} : A.residue a = algebraMap A k a := rfl
 
 lemma ker_residue : RingHom.ker (residue A) = maximalIdeal A :=
   eq_maximalIdeal (RingHom.ker_isMaximal_of_surjective _ A.surj)
@@ -596,8 +598,8 @@ noncomputable abbrev ofSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X] [
     exact A.surj))
 
 @[simp]
-lemma residue_ofSurj (X : Type w) [CommRing X] [Nontrivial X] [Algebra A X] [Algebra Λ X]
-    [IsScalarTower Λ A X] (h : Surjective (algebraMap A X)) (a : A) :
+lemma residue_ofSurj_algebraMap_apply (X : Type w) [CommRing X] [Nontrivial X] [Algebra A X]
+    [Algebra Λ X] [IsScalarTower Λ A X] (h : Surjective (algebraMap A X)) (a : A) :
     (ofSurj A X h).residue (algebraMap A X a) = A.residue a := by
   let : Algebra X k := ((algebraMap A X).liftOfSurjective h ⟨algebraMap A k, by
     rw [ker_eq_maximalIdeal _ A.surj]
@@ -621,7 +623,8 @@ noncomputable abbrev toOfSurj (A : LocAlgCat.{w} Λ k) (X : Type w) [CommRing X]
       RingHom.liftOfSurjective_comp_apply]
     simp [IsScalarTower.algebraMap_apply Λ A k]
   letI : IsLocalHom (IsScalarTower.toAlgHom Λ A X) := ⟨h.isLocalHom.map_nonunit⟩
-  ofHom (IsScalarTower.toAlgHom Λ A X) (by ext; simpa [residue] using residue_ofSurj ..)
+  ofHom (IsScalarTower.toAlgHom Λ A X)
+    (by ext; simpa [residue] using residue_ofSurj_algebraMap_apply ..)
 
 @[simp]
 lemma toAlgHom_toOfSurj (X : Type w) [CommRing X] [Nontrivial X] [Algebra A X] [Algebra Λ X]
@@ -753,11 +756,34 @@ instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
     apply IsUnit.map (algebraMap A k) at hr
     rwa [← IsScalarTower.algebraMap_apply Λ A k r, isUnit_map_iff] at hr
 
-instance : Module k (CotangentSpace A) :=
-  Module.compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
+instance : IsScalarTower Λ (ResidueField A) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
+  rw [IsScalarTower.algebraMap_apply Λ A, IsScalarTower.algebraMap_smul,
+    ← algebra_compatible_smul A]
+
+instance : Module k (CotangentSpace A) := .compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
 
 lemma smul_cotangent_def (r : k) (x : CotangentSpace A) : r • x = (A.residueEquiv.symm r) • x :=
   rfl
+
+instance : IsScalarTower Λ k (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
+  rw [smul_cotangent_def, IsScalarTower.algebraMap_eq Λ A, RingHom.comp_apply]
+  have := residueEquiv_residue_apply (x := algebraMap Λ A r)
+  rw [← AlgEquiv.eq_symm_apply, residue_apply] at this
+  rw [← this, ← ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul,
+    IsScalarTower.algebraMap_smul]
+
+instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] : Module (ResidueField Λ) (CotangentSpace A) :=
+  .compHom _ (algebraMap (ResidueField Λ) k)
+
+lemma residueField_smul_cotangent [IsLocalRing Λ] [Algebra.IsIntegral Λ k] (r : ResidueField Λ)
+    (x : CotangentSpace A) : r • x = (algebraMap (ResidueField Λ) k r) • x := rfl
+
+instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
+    IsScalarTower (ResidueField Λ) k (CotangentSpace A) := .of_compHom ..
+
+instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
+    IsScalarTower Λ (ResidueField Λ) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
+  rw [residueField_smul_cotangent, ← IsScalarTower.algebraMap_apply, IsScalarTower.algebraMap_smul]
 
 @[simp]
 lemma residue_smul_cotangent (a : A) (x : CotangentSpace A) : A.residue a • x = a • x := by
@@ -765,22 +791,23 @@ lemma residue_smul_cotangent (a : A) (x : CotangentSpace A) : A.residue a • x 
     ← IsLocalRing.ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul]
 
 /-- The canonical `k`-linear map between cotangent spaces. -/
-def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B := .mk
-  ((maximalIdeal A).mapCotangent (maximalIdeal B) f.toAlgHom
-    (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp
-      (isLocalHom_toRingHom f.toAlgHom))).toAddHom (fun r x ↦ by
+def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B where
+  toFun x := (maximalIdeal A).mapCotangent (maximalIdeal B) f.toAlgHom
+    (((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 3).mp (isLocalHom_toRingHom f.toAlgHom)) x
+  map_add' := by simp
+  map_smul' r x := by
     obtain ⟨s, hs⟩ := A.residue_surjective r
     obtain ⟨t, ht⟩ := B.residue_surjective r
     obtain ⟨x, rfl⟩ := (maximalIdeal A).toCotangent_surjective x
     nth_rw 1 [← hs, ← ht]
-    simp only [residue_smul_cotangent, AddHom.toFun_eq_coe, LinearMap.coe_toAddHom,
-      RingHom.id_apply, Ideal.mapCotangent_toCotangent, ← map_smul, Ideal.toCotangent_eq]
+    simp only [residue_smul_cotangent, RingHom.id_apply, Ideal.mapCotangent_toCotangent,
+      ← map_smul, Ideal.toCotangent_eq]
     simp only [SetLike.val_smul, smul_eq_mul, map_mul, ← sub_mul, pow_two]
     refine Ideal.mul_mem_mul ?_ ?_
     · rwa [← residue_eq_zero_iff, map_sub, sub_eq_zero, ← AlgHom.comp_apply, f.residue_comp, ht]
     · rw [← Ideal.mem_comap]; convert x.prop
       exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
-        (isLocalHom_toRingHom (Hom.toAlgHom f)))
+        (isLocalHom_toRingHom (Hom.toAlgHom f))
 
 /-- The relative cotangent space for an object in `LocAlgCat`. -/
 @[stacks 06GY]
@@ -811,11 +838,6 @@ abbrev baseCotangentMap [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] [Module.
     (A : LocAlgCat.{w} Λ k) : k ⊗[ResidueField Λ] CotangentSpace Λ →ₗ[k] CotangentSpace A :=
   letI F : Λ →ₐ[Λ] A := Algebra.ofId Λ A
   haveI : IsLocalHom (F : Λ →+* A) := inferInstanceAs <| IsLocalHom (algebraMap Λ A)
-  haveI : Module (ResidueField Λ) (maximalIdeal A).Cotangent :=
-    Module.compHom _ (algebraMap (ResidueField Λ) k)
-  haveI : IsScalarTower Λ (ResidueField Λ) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
-    sorry
-  haveI : IsScalarTower (ResidueField Λ) k (CotangentSpace A) := sorry
   letI baseMap : CotangentSpace Λ →ₗ[ResidueField Λ] CotangentSpace A :=
     ((maximalIdeal Λ).mapCotangent (maximalIdeal A) F
       (((IsLocalRing.local_hom_TFAE (F : Λ →+* A)).out 0 3).mp ‹_›)).extendScalarsOfSurjective
