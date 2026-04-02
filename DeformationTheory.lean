@@ -519,6 +519,7 @@ lemma inv_hom_apply (e : A ≅ B) (x : A) : e.inv (e.hom x) = x := by simp
 
 lemma hom_inv_apply (e : A ≅ B) (x : B) : e.hom (e.inv x) = x := by simp
 
+/-
 variable (A) in
 lemma forget_obj : (forget (LocAlgCat.{w} Λ k)).obj A = A := rfl
 
@@ -540,7 +541,6 @@ instance hasForgetToCommAlgCat : HasForget₂ (LocAlgCat.{w} Λ k) (CommAlgCat.{
 @[simp] lemma forget₂_commAlgCat_map (f : A ⟶ B) :
     (forget₂ (LocAlgCat.{w} Λ k) (CommAlgCat.{w} Λ)).map f = CommAlgCat.ofHom f.toAlgHom := rfl
 
-/-
 /-- Build an isomorphism in the category `LocAlgCat Λ k` from
 an `AlgEquiv` between `Λ`-algebras. -/
 
@@ -653,8 +653,6 @@ lemma residue_ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom)
 abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
     ofPullback f g hg ⟶ A := .mk (f.toAlgHom.pullbackFst g.toAlgHom) rfl
 
------------------------------------------------------------------------------------
-
 lemma exists_mem_maximalIdeal_toAlgHom_add_eq (f : A ⟶ C) (g : B ⟶ C) (hf : Surjective f.toAlgHom)
     (a : A) : ∃ (b : B) (m : A), m ∈ maximalIdeal A ∧ f.toAlgHom (a + m) = g.toAlgHom b := by
   rcases B.residue_surjective (residue A a) with ⟨b, hb⟩
@@ -758,7 +756,7 @@ instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) where
 
 instance : IsScalarTower Λ (ResidueField A) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
   rw [IsScalarTower.algebraMap_apply Λ A, IsScalarTower.algebraMap_smul,
-    ← algebra_compatible_smul A]
+    IsScalarTower.algebraMap_smul]
 
 instance : Module k (CotangentSpace A) := .compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
 
@@ -847,20 +845,14 @@ abbrev baseCotangentMap [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] [Module.
 /-- The canonical `k`-linear map between relative cotangent spaces. -/
 def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
   letI : Algebra A B := f.toAlgHom.toRingHom.toAlgebra
-  haveI : IsScalarTower Λ A B := IsScalarTower.of_algHom f.toAlgHom
   haveI : IsScalarTower A B k := .of_algebraMap_eq fun a ↦ by
     rw [RingHom.algebraMap_toAlgebra, eq_comm, ← RingHom.comp_apply]
     exact DFunLike.congr_fun f.residue_comp a
-  haveI : TensorProduct.CompatibleSMul B A k Ω[B⁄Λ] := ⟨fun a c ω ↦ by
-    rw [← IsScalarTower.algebraMap_smul B a c, ← IsScalarTower.algebraMap_smul B a ω,
-      ← TensorProduct.smul_tmul]⟩
-  letI F : k →ₗ[A] Ω[A⁄Λ] →ₗ[A] k ⊗[B] Ω[B⁄Λ] := .mk₂ A
-    (fun c ω ↦ c ⊗ₜ[B] KaehlerDifferential.map Λ Λ A B ω)
-    (fun _ _ _ ↦ by simp only [TensorProduct.add_tmul])
-    (fun _ _ _ ↦ by simp only [TensorProduct.smul_tmul'])
-    (fun _ _ _ ↦ by simp only [map_add, TensorProduct.tmul_add])
-    (fun _ _ _ ↦ by simp only; rw [map_smul, TensorProduct.smul_tmul', TensorProduct.smul_tmul])
-  (TensorProduct.lift F).extendScalarsOfSurjective A.surj
+  letI baseMap : Ω[A⁄Λ] →ₗ[A] B.relCotangent := {
+    toFun := fun ω ↦ 1 ⊗ₜ[B] KaehlerDifferential.map Λ Λ A B ω
+    map_add' := fun _ _ ↦ by rw [map_add, TensorProduct.tmul_add]
+    map_smul' := fun a ω ↦ by rw [RingHom.id_apply, map_smul, TensorProduct.tmul_smul] }
+  TensorProduct.AlgebraTensorModule.lift (LinearMap.toSpanSingleton k _ baseMap)
 
 @[stacks 06S3 "(2)=>(3)"]
 theorem surjective_mapRelCotangent_of_surjective_mapCotangent (hf : Surjective (mapCotangent f)) :
