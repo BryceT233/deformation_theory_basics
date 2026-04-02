@@ -32,26 +32,6 @@ end AlgHom
 
 --------------------------------------------------------------------------------
 
-/-! # some `ULift` instances.
-goes to where `RingEquiv` API locates. -/
-/-
-instance {R : Type*} [Semiring R] [IsNoetherianRing R] : IsNoetherianRing (ULift R) :=
-  isNoetherianRing_of_ringEquiv R (ULift.ringEquiv.symm)
-
-instance {R : Type*} [Semiring R] [IsArtinianRing R] : IsArtinianRing (ULift R) :=
-  RingEquiv.isArtinianRing (ULift.ringEquiv.symm)
-
-instance {R : Type*} [CommSemiring R] [IsLocalRing R] : IsLocalRing (ULift R) :=
-  RingEquiv.isLocalRing (ULift.ringEquiv.symm)
-
-instance {R : Type*} [CommRing R] [IsLocalRing R] [IsAdicComplete (maximalIdeal R) R] :
-    IsAdicComplete (maximalIdeal (ULift.{u} R)) (ULift.{u} R) := by
-  rw [← IsAdicComplete.congr_ringEquiv _ ULift.ringEquiv,
-    IsLocalRing.eq_maximalIdeal (Ideal.map_isMaximal_of_equiv ULift.ringEquiv)]
-  infer_instance -/
-
---------------------------------------------------------------------------------
-
 instance (priority := 100) {R : Type*} [CommRing R] [IsArtinianRing R] [IsLocalRing R] :
     IsAdicComplete (IsLocalRing.maximalIdeal R) R where
   prec' f hf := by
@@ -132,12 +112,6 @@ theorem IsLocalRing.surjective_mapCotangent_of_surjective {R S A : Type*} [CommR
     rwa [← ResidueField.map_residue, ← RingHom.mem_ker, (RingHom.injective_iff_ker_eq_bot _).mp
       (show Injective (ResidueField.map (f : R →+* S)) from RingHom.injective _),
       Submodule.mem_bot, residue_eq_zero_iff] at hz
-/-
-open Function in
-theorem IsLocalRing.tmp {R S A : Type*} [CommRing R] [IsNoetherianRing R] [IsLocalRing R]
-    [IsAdicComplete (maximalIdeal R) R] [CommRing S] [IsNoetherianRing S] [IsLocalRing S]
-    [IsAdicComplete (maximalIdeal S) S] [CommRing A] [Algebra A R] [Algebra A S]
-    {f : R →ₐ[A] S} :-/
 
 --------------------------------------------------------------------------------
 
@@ -316,18 +290,6 @@ instance isLocalRing_algHomPullback {R S T A : Type*} [CommSemiring R] [Ring S] 
     (g : T →ₐ[R] A) [IsLocalHom g] : IsLocalRing (AlgHom.pullback f g) :=
   inferInstanceAs <| IsLocalRing (RingHom.pullback (f : S →+* A) (g : T →+* A))
 
---------------------------------------------------------------------------------
-/-
-theorem AlgEquiv.subsingleton_of_surjective {A R S : Type*} [CommSemiring A] [Semiring R]
-    [Semiring S] [Algebra A R] [Algebra A S] (h : Function.Surjective (algebraMap A S)) :
-    Subsingleton (R ≃ₐ[A] S) where
-  allEq e f := AlgEquiv.ext fun s ↦ by
-    obtain ⟨a, ha⟩ := h (e s)
-    have hs : s = algebraMap A R a := by
-      apply e.injective
-      simp [← ha]
-    simp [hs]
--/
 --------------------------------------------------------------------------------
 
 -- goes to `Algebra/Polynomial/Taylor.lean`
@@ -542,18 +504,20 @@ lemma forget₂_commAlgCat_obj (A : LocAlgCat.{w} Λ k) :
 lemma forget₂_commAlgCat_map (f : A ⟶ B) :
     (forget₂ (LocAlgCat.{w} Λ k) (CommAlgCat.{w} Λ)).map f = CommAlgCat.ofHom f.toAlgHom := rfl
 
-/-
 /-- Build an isomorphism in the category `LocAlgCat Λ k` from
 an `AlgEquiv` between `Λ`-algebras. -/
-
 @[simps]
 def isoMk {X Y : Type w} {_ : CommRing X} {_ : IsLocalRing X} {_ : Algebra Λ X} {_ : CommRing Y}
     {_ : IsLocalRing Y} {_ : Algebra Λ Y} {_ : Algebra X k} {_ : Algebra Y k}
     {_ : IsScalarTower Λ X k} {_ : IsScalarTower Λ Y k} {hX : Surjective (algebraMap X k)}
     {hY : Surjective (algebraMap Y k)} (e : X ≃ₐ[Λ] Y) (he : (of Λ k Y hY).residue.comp e =
       (of Λ k X hX).residue) : of Λ k X hX ≅ of Λ k Y hY where
-  hom := ofHom (e : X →ₐ[Λ] Y) (by rw [← he])
-  inv := ofHom (e.symm : Y →ₐ[Λ] X) (by ext; simp [← he])
+  hom :=
+    letI : IsLocalHom (e : X →ₐ[Λ] Y) := ⟨by simp⟩
+    ofHom (e : X →ₐ[Λ] Y) (by rw [← he])
+  inv :=
+    letI : IsLocalHom (e.symm : Y →ₐ[Λ] X) := ⟨by simp⟩
+    ofHom (e.symm : Y →ₐ[Λ] X) (by ext; simp [← he])
   inv_hom_id := by simp [← ofHom_comp]
   hom_inv_id := by simp [← ofHom_comp]
 
@@ -578,7 +542,6 @@ def isoEquivSubtypeAlgEquiv : (of Λ k X hX ≅ of Λ k Y hY) ≃
     { e : X ≃ₐ[Λ] Y // (of Λ k Y hY).residue.comp e = (of Λ k X hX).residue } where
   toFun i := ⟨ofIso i, residue_comp_coe_ofIso i⟩
   invFun f := isoMk f.val f.prop
--/
 
 ----------------------------------------------------------------------------------------------
 
@@ -885,7 +848,7 @@ instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
     IsScalarTower (ResidueField Λ) k (CotangentSpace A) := .of_compHom ..
 
 instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
-    IsScalarTower Λ (ResidueField Λ) (CotangentSpace A) := .of_algebraMap_smul fun r x ↦ by
+    IsScalarTower Λ (ResidueField Λ) (CotangentSpace A) := .of_algebraMap_smul fun _ _ ↦ by
   rw [residueField_smul_cotangent, ← IsScalarTower.algebraMap_apply, IsScalarTower.algebraMap_smul]
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
@@ -947,6 +910,10 @@ def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B whe
       exact ((local_hom_TFAE (f.toAlgHom : A →+* B)).out 0 4).mp
         (isLocalHom_toRingHom (Hom.toAlgHom f))
 
+theorem mapCotangent_comp_baseCotangentMap [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+    [Algebra.IsIntegral Λ k] : (mapCotangent f).comp A.baseCotangentMap = B.baseCotangentMap := by
+  sorry
+
 /-- The canonical `k`-linear map between relative cotangent spaces. -/
 def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
   letI : Algebra A B := f.toAlgHom.toRingHom.toAlgebra
@@ -959,6 +926,9 @@ def mapRelCotangent (f : A ⟶ B) : A.relCotangent →ₗ[k] B.relCotangent :=
     map_smul' := fun a ω ↦ by rw [RingHom.id_apply, map_smul, TensorProduct.tmul_smul] }
   TensorProduct.AlgebraTensorModule.lift (LinearMap.toSpanSingleton k _ baseMap)
 
+theorem mapRelCotangent_comp_toRelCotangent : (mapRelCotangent f).comp A.toRelCotangent =
+    B.toRelCotangent.comp (mapCotangent f) := by sorry
+
 @[stacks 06S3 "(2)=>(3)"]
 theorem surjective_mapRelCotangent_of_surjective_mapCotangent (hf : Surjective (mapCotangent f)) :
     Surjective (mapRelCotangent f) := by sorry
@@ -966,7 +936,7 @@ theorem surjective_mapRelCotangent_of_surjective_mapCotangent (hf : Surjective (
 end Cotangent
 
 end LocAlgCat
-
+/--/
 /-- The complete base category for deformation theory over `Λ`. This is the full subcategory of
 `LocAlgCat Λ k` consisting of complete Noetherian local `Λ`-algebras with residue field `k`. -/
 abbrev CBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra Λ k] :=
