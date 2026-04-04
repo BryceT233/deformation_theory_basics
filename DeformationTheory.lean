@@ -896,15 +896,18 @@ def cotangentToRelCotangent (A : LocAlgCat.{w} Λ k) : CotangentSpace A →ₗ[k
       ← TensorProduct.smul_tmul, Algebra.smul_def, ← residue_toRingHom, RingHom.coe_coe,
       residue_eq_zero_iff.mpr x.prop, zero_mul, TensorProduct.zero_tmul]
 
+lemma cotangentToRelCotangent_toCotangent (A : LocAlgCat.{w} Λ k) (a : maximalIdeal A) :
+    A.cotangentToRelCotangent ((maximalIdeal A).toCotangent a) = 1 ⊗ₜ (D Λ A) a := rfl
+
 theorem surjective_cotangentToSpecialFiberCotangent [IsLocalRing Λ] :
     Surjective A.cotangentToSpecialFiberCotangent := fun r ↦ by
   simpa using Submodule.factor_surjective (by simp) r
 
 open Submodule in
-theorem exact_baseCotangentMap_cotangentToSpecialFiberCotangent [IsLocalRing Λ]
-    [Algebra.IsIntegral Λ k] (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
-    Exact (A.baseCotangentMap h) A.cotangentToSpecialFiberCotangent := by
-  refine LinearMap.exact_iff.mpr (le_antisymm ?_ ?_)
+theorem ker_cotangentToSpecialFiberCotangent [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
+    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
+    A.cotangentToSpecialFiberCotangent.ker = (A.baseCotangentMap h).range := by
+  refine le_antisymm ?_ ?_
   · intro x hx
     rcases (maximalIdeal A).toCotangent_surjective x with ⟨x, rfl⟩
     simp_rw [LinearMap.mem_ker, cotangentToSpecialFiberCotangent_toCotangent, Quotient.mk_eq_zero,
@@ -921,15 +924,15 @@ theorem exact_baseCotangentMap_cotangentToSpecialFiberCotangent [IsLocalRing Λ]
     | zero => use 0; simp [show (⟨0, hy⟩ : maximalIdeal A) = 0 by rfl]
     | add z w hz hw ihz ihw =>
       change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
-      have := ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp (comap_algebraMap_maximalIdeal h)
-      rw [show (⟨z + w, hy⟩ : maximalIdeal A) = ⟨z, this hz⟩ + ⟨w, this hw⟩ by simp, map_add]
-      exact add_mem (ihz <| this hz) (ihw <| this hw)
+      rw [show (⟨z + w, hy⟩ : maximalIdeal A) = ⟨z, map_algebraMap_maximalIdeal_le h hz⟩ +
+        ⟨w, (map_algebraMap_maximalIdeal_le h) hw⟩ by simp, map_add]
+      exact add_mem (ihz <| map_algebraMap_maximalIdeal_le h hz)
+        (ihw <| map_algebraMap_maximalIdeal_le h hw)
     | smul a x hx ihx =>
       change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hx
-      have := ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp (comap_algebraMap_maximalIdeal h)
-      rw [show (⟨a • x, hy⟩ : maximalIdeal A) = a • ⟨x, this hx⟩ by simp, map_smul,
-        ← residue_smul_cotangent]
-      exact smul_mem _ _ (ihx <| this hx)
+      rw [show (⟨a • x, hy⟩ : maximalIdeal A) = a • ⟨x, map_algebraMap_maximalIdeal_le h hx⟩ by
+        simp, map_smul, ← residue_smul_cotangent]
+      exact smul_mem _ _ (ihx <| map_algebraMap_maximalIdeal_le h hx)
   · rintro _ ⟨y, rfl⟩; induction y with
     | zero => simp
     | tmul _ x =>
@@ -942,12 +945,14 @@ theorem exact_baseCotangentMap_cotangentToSpecialFiberCotangent [IsLocalRing Λ]
       exact x.prop
     | add x y hx hy => rw [map_add]; exact add_mem hx hy
 
-theorem exact_baseCotangentMap_cotangentToRelCotangent [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
-    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
-    Exact (A.baseCotangentMap h) A.cotangentToRelCotangent := sorry
+open Submodule in
+theorem exact_baseCotangentMap_cotangentToSpecialFiberCotangent [IsLocalRing Λ]
+    [Algebra.IsIntegral Λ k] (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
+    Exact (A.baseCotangentMap h) A.cotangentToSpecialFiberCotangent :=
+  LinearMap.exact_iff.mpr (ker_cotangentToSpecialFiberCotangent h)
 
 ---------------------------------------------------------------------------------
-/--/
+
 variable {f : A ⟶ B}
 
 /-- The canonical `k`-linear map between cotangent spaces. -/
