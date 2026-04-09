@@ -10,7 +10,7 @@ public import Mathlib
 
 @[expose] public section
 
-universe w v u
+universe w w' v u
 
 instance (priority := 100) {R : Type*} [CommRing R] [IsArtinianRing R] [IsLocalRing R] :
     IsAdicComplete (IsLocalRing.maximalIdeal R) R where
@@ -25,15 +25,18 @@ instance (priority := 100) {R : Type*} [CommRing R] [IsArtinianRing R] [IsLocalR
 
 --------------------------------------------------------------------------------
 
+lemma Order.krullDim_le_of_orderEmbedding {α β : Type*} [Preorder α] [PartialOrder β] (e : α ↪o β) :
+    Order.krullDim α ≤ Order.krullDim β := by
+  have (b : β) : Subsingleton (e ⁻¹' {b}) := Set.Subsingleton.coe_sort <|
+    Set.Subsingleton.preimage Set.subsingleton_singleton e.injective
+  simpa using Order.krullDim_le_of_krullDim_preimage_le' e e.monotone fun _ ↦
+    Order.krullDim_nonpos_of_subsingleton
+
 theorem Submodule.length_le_length_restrictScalar (A R M : Type*) [Ring A] [Ring R] [SMul A R]
     [AddCommGroup M] [Module A M] [Module R M] [IsScalarTower A R M] (p : Submodule R M) :
     Module.length R p ≤ Module.length A (p.restrictScalars A) := by
   rw [← WithBot.coe_le_coe, Module.coe_length, Module.coe_length]
-  let e : Submodule R ↥p ↪o Submodule A ↥(restrictScalars A p) := restrictScalarsEmbedding A R p
-  have (q : Submodule A ↥(restrictScalars A p)) : Subsingleton (e ⁻¹' {q}) :=
-    Set.Subsingleton.coe_sort <| Set.Subsingleton.preimage Set.subsingleton_singleton e.injective
-  simpa using Order.krullDim_le_of_krullDim_preimage_le' e e.monotone fun _ ↦
-    Order.krullDim_nonpos_of_subsingleton
+  exact Order.krullDim_le_of_orderEmbedding (restrictScalarsEmbedding A R p)
 
 lemma ENat.lt_add_left {n k : ℕ∞} (h : n ≠ ⊤) (h' : 0 < k) : n < k + n := by
   nth_rw 1 [← zero_add n, ENat.add_lt_add_iff_right h]
@@ -67,30 +70,6 @@ theorem Ideal.annihilator_inf_ne_bot {R : Type*} [CommSemiring R] {I J : Ideal R
     exact smul_mem_smul x_in r_in
   · rw [smul_eq_mul, mul_comm, ← smul_eq_mul] at x_in
     exact smul_le_right x_in
-
---------------------------------------------------------------------------------
-
--- goes to `Mathlib.RingTheory.Ideal.Cotangent`
-
-open Function in
-@[stacks 06S3 "(1) => (2)"]
-theorem IsLocalRing.surjective_mapCotangent_of_surjective {R S A : Type*} [CommRing R]
-    [IsLocalRing R] [CommRing S] [IsLocalRing S] [CommRing A] [Algebra A R] [Algebra A S]
-    {f : R →ₐ[A] S} (h : Surjective f) : Surjective ((maximalIdeal R).mapCotangent
-      (maximalIdeal S) f (((local_hom_TFAE f).out 0 3).mp h.isLocalHom)) := by
-  have : IsLocalHom (f : R →+* S) := h.isLocalHom
-  intro b; induction b using Submodule.Quotient.induction_on with
-  | H z =>
-    rcases z with ⟨z, hz⟩; rcases h z with ⟨z, rfl⟩
-    suffices z ∈ maximalIdeal R by
-      use (maximalIdeal R).toCotangent ⟨z, this⟩
-      simp only [Ideal.mapCotangent_toCotangent]
-      congr
-    rw [← residue_eq_zero_iff] at hz
-    nth_rw 2 [← RingHom.coe_coe] at hz
-    rwa [← ResidueField.map_residue, ← RingHom.mem_ker, (RingHom.injective_iff_ker_eq_bot _).mp
-      (show Injective (ResidueField.map (f : R →+* S)) from RingHom.injective _),
-      Submodule.mem_bot, residue_eq_zero_iff] at hz
 
 --------------------------------------------------------------------------------
 
@@ -266,6 +245,29 @@ theorem IsLocalRing.eq_of_eval_eq_zero_of_not_isUnit_sub {R : Type*} [CommRing R
   replace this := (maximalIdeal R).add_mem this ((maximalIdeal R).mul_mem_left c h)
   ring_nf at this
   contradiction
+--------------------------------------------------------------------------------
+
+/-! # some `ULift` instances.
+goes to where `RingEquiv` API locates. -/
+
+instance {R : Type*} [Semiring R] [IsNoetherianRing R] : IsNoetherianRing (ULift R) :=
+  isNoetherianRing_of_ringEquiv R (ULift.ringEquiv.symm)
+
+instance {R : Type*} [Semiring R] [IsArtinianRing R] : IsArtinianRing (ULift R) :=
+  RingEquiv.isArtinianRing (ULift.ringEquiv.symm)
+
+instance {R : Type*} [CommSemiring R] [IsLocalRing R] : IsLocalRing (ULift R) :=
+  RingEquiv.isLocalRing (ULift.ringEquiv.symm)
+
+open IsLocalRing in
+instance {R : Type*} [CommRing R] [IsLocalRing R] [IsAdicComplete (maximalIdeal R) R] :
+    IsAdicComplete (maximalIdeal (ULift.{u} R)) (ULift.{u} R) := by
+  rwa [← IsAdicComplete.congr_ringEquiv _ ULift.ringEquiv, IsLocalRing.eq_maximalIdeal
+    (Ideal.map_isMaximal_of_equiv ULift.ringEquiv)]
+
+@[to_additive (attr := simp)]
+theorem ULift.isUnit_down {M : Type*} [Monoid M] {a : ULift M} : IsUnit a.down ↔ IsUnit a :=
+  ⟨IsUnit.map MulEquiv.ulift.symm, IsUnit.map MulEquiv.ulift⟩
 
 --------------------------------------------------------------------------------
 
@@ -346,9 +348,6 @@ abbrev of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] [Algebra X k]
 lemma coe_of : (of Λ k X hX : Type w) = X := rfl
 
 @[simp]
-lemma of_coe (A : LocAlgCat.{w} Λ k) : of Λ k A A.surj = A := rfl
-
-@[simp]
 lemma residue_of_apply {x : (of Λ k X hX)} : (of Λ k X hX).residue x = algebraMap X k x := rfl
 
 /-- The canonical equivalence between the residue field of an object and `k`. -/
@@ -402,23 +401,17 @@ abbrev ofHom (f : X →ₐ[Λ] Y) (h : (maximalIdeal Y).comap f = maximalIdeal X
     of Λ k X hX ⟶ of Λ k Y hY := ⟨f, h, h'⟩
 
 @[simp]
-lemma toAlgHom_ofHom (f : X →ₐ[Λ] Y) (h : (maximalIdeal Y).comap f = maximalIdeal X)
-    (h' : (of Λ k Y hY).residue.comp f = (of Λ k X hX).residue) :
-  (ofHom f h h').toAlgHom = f := rfl
-
-@[simp]
-lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.comap_maximalIdeal_eq f.residue_comp = f := rfl
+lemma ofhom_toAlgHom (f : A ⟶ B) : ofHom f.toAlgHom f.comap_maximalIdeal_eq f.residue_comp = f :=
+  rfl
 
 @[simp]
 lemma hom_id : (𝟙 A : A ⟶ A).toAlgHom = AlgHom.id Λ A := rfl
 
-@[simp]
 lemma id_apply (a : A) : (𝟙 A : A ⟶ A) a = a := by simp
 
 @[simp]
 lemma hom_comp (f : A ⟶ B) (g : B ⟶ C) : (f ≫ g).toAlgHom = g.toAlgHom.comp f.toAlgHom := rfl
 
-@[simp]
 lemma comp_apply (f : A ⟶ B) (g : B ⟶ C) (a : A) : (f ≫ g) a = g (f a) := by simp
 
 @[simp]
@@ -495,6 +488,42 @@ def isoEquivSubtypeAlgEquiv : (of Λ k X hX ≅ of Λ k Y hY) ≃
   toFun i := ⟨ofIso i, residue_comp_coe_ofIso i⟩
   invFun f := isoMk f.val f.prop
 
+variable (Λ k) in
+/-- Universe lift functor for `LocAlgCat`. -/
+def uliftFunctor : LocAlgCat.{w} Λ k ⥤ LocAlgCat.{max w w'} Λ k where
+  obj A :=
+    letI : Algebra (ULift.{w'} A) k := ULift.algebra' ..
+    haveI : IsScalarTower Λ (ULift.{w'} A) k := ULift.isScalarTower' ..
+    of Λ k (ULift.{w'} A) (fun r ↦ by simpa using A.surj r)
+  map {A B} f :=
+    letI : Algebra (ULift.{w'} A) k := ULift.algebra' ..
+    haveI : IsScalarTower Λ (ULift.{w'} A) k := ULift.isScalarTower' ..
+    letI : Algebra (ULift.{w'} B) k := ULift.algebra' ..
+    haveI : IsScalarTower Λ (ULift.{w'} B) k := ULift.isScalarTower' ..
+    ofHom (ULift.algEquiv.symm.toAlgHom.comp <| f.toAlgHom.comp ULift.algEquiv.toAlgHom) (by
+      have := f.isLocalHom_toAlgHom
+      ext; simp) (by ext x; simpa using DFunLike.congr_fun f.residue_comp x.down)
+
+variable (Λ k) in
+/-- The universe lift functor for commutative algebras is fully faithful. -/
+def fullyFaithfulUliftFunctor : (uliftFunctor Λ k).FullyFaithful where
+  preimage {A B} f :=
+    letI : Algebra (ULift.{w'} A) k := ULift.algebra' ..
+    haveI : IsScalarTower Λ (ULift.{w'} A) k := ULift.isScalarTower' ..
+    letI : Algebra (ULift.{w'} B) k := ULift.algebra' ..
+    haveI : IsScalarTower Λ (ULift.{w'} B) k := ULift.isScalarTower' ..
+    letI F : ULift A →ₐ[Λ] ULift B := f.toAlgHom
+    ofHom (ULift.algEquiv.toAlgHom.comp <| F.comp ULift.algEquiv.symm.toAlgHom) (by
+      have : IsLocalHom F := f.isLocalHom_toAlgHom
+      ext; simp) (AlgHom.ext fun x ↦ by
+        have := DFunLike.congr_fun f.residue_comp
+        simp only [uliftFunctor, AlgEquiv.toAlgHom_eq_coe, coe_of, ULift.forall] at this
+        exact this x)
+
+instance : (uliftFunctor Λ k).Full := (fullyFaithfulUliftFunctor Λ k).full
+
+instance : (uliftFunctor Λ k).Faithful := (fullyFaithfulUliftFunctor Λ k).faithful
+
 ----------------------------------------------------------------------------------------------
 
 lemma exists_mem_maximalIdeal_toAlgHom_apply_add_eq (f : A ⟶ C) (g : B ⟶ C) (a : A)
@@ -514,15 +543,11 @@ lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ]
   rw [eq_comm, ← h, IsScalarTower.algebraMap_eq Λ A, ← Ideal.comap_comap,
     eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _ A.surj)]
 
-lemma map_algebraMap_maximalIdeal_le [IsLocalRing Λ]
-    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
-    (maximalIdeal Λ).map (algebraMap Λ A) ≤ maximalIdeal A :=
-  ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp (comap_algebraMap_maximalIdeal h)
-
 lemma map_algebraMap_maximalIdeal_ne_top [IsLocalRing Λ]
     (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
-    (maximalIdeal Λ).map (algebraMap Λ A) ≠ ⊤ :=
-  ne_top_of_le_ne_top (maximalIdeal.isMaximal A).ne_top (map_algebraMap_maximalIdeal_le h)
+    (maximalIdeal Λ).map (algebraMap Λ A) ≠ ⊤ := ne_top_of_le_ne_top
+  (maximalIdeal.isMaximal A).ne_top <| ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp
+    (comap_algebraMap_maximalIdeal h)
 
 section ofQuot
 
@@ -606,7 +631,7 @@ abbrev mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
 theorem toOfQuot_comp_mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
     (hf : I ≤ J.comap f.toAlgHom) : A.toOfQuot h ≫ mapOfQuot f h h' hf = f ≫ B.toOfQuot h' := rfl
 
-/-- The quotient of a local algebra `A` by the `n`-th power of its maximal ideal.
+/-- The quotient of a local algebra by the `n`-th power of its maximal ideal.
 Geometrically, this represents an infinitesimal neighborhood of the closed point. -/
 abbrev infinitesimalNeighborhood {n : ℕ} (hn : n ≠ 0) (A : LocAlgCat.{w} Λ k) : LocAlgCat Λ k :=
   ofQuot A ((maximalIdeal A ^ n).ne_top_iff_exists_maximal.mpr ⟨maximalIdeal A,
@@ -959,8 +984,8 @@ instance [Algebra.IsIntegral Λ k] : IsScalarTower Λ (ResidueField Λ) (Cotange
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
 to the cotangent space of `A`, induced by the algebra structure map. -/
-abbrev baseCotangentMap (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ)
-    [Algebra.IsIntegral Λ k] (A : LocAlgCat.{w} Λ k) :
+abbrev baseCotangentMap [Algebra.IsIntegral Λ k]
+    (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) (A : LocAlgCat.{w} Λ k) :
     k ⊗[ResidueField Λ] CotangentSpace Λ →ₗ[k] CotangentSpace A :=
   letI baseMap : CotangentSpace Λ →ₗ[ResidueField Λ] CotangentSpace A :=
     ((maximalIdeal Λ).mapCotangent (maximalIdeal A) (Algebra.ofId Λ A) (by
@@ -1035,6 +1060,8 @@ theorem ker_cotangentToSpecialFiberCotangent_eq [Algebra.IsIntegral Λ k]
     rw [← h', map_add, ((maximalIdeal A).toCotangent_eq_zero z).mpr z_in, add_zero]
     clear z z_in h' x; rcases y with ⟨y, hy⟩
     simp only [Ideal.map, Ideal.span] at y_in
+    have : Ideal.map (algebraMap Λ A) (maximalIdeal Λ) ≤ maximalIdeal A :=
+      ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp (comap_algebraMap_maximalIdeal h)
     induction y_in using span_induction with
     | mem _ hx =>
       obtain ⟨x, x_in, rfl⟩ := hx
@@ -1042,15 +1069,13 @@ theorem ker_cotangentToSpecialFiberCotangent_eq [Algebra.IsIntegral Λ k]
     | zero => use 0; simp [show (⟨0, hy⟩ : maximalIdeal A) = 0 by rfl]
     | add z w hz hw ihz ihw =>
       change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
-      rw [show (⟨z + w, hy⟩ : maximalIdeal A) = ⟨z, map_algebraMap_maximalIdeal_le h hz⟩ +
-        ⟨w, (map_algebraMap_maximalIdeal_le h) hw⟩ by simp, map_add]
-      exact add_mem (ihz <| map_algebraMap_maximalIdeal_le h hz)
-        (ihw <| map_algebraMap_maximalIdeal_le h hw)
+      rw [show (⟨z + w, hy⟩ : maximalIdeal A) = ⟨z, this hz⟩ + ⟨w, this hw⟩ by simp, map_add]
+      exact add_mem (ihz <| this hz) (ihw <| this hw)
     | smul a x hx ihx =>
       change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hx
-      rw [show (⟨a • x, hy⟩ : maximalIdeal A) = a • ⟨x, map_algebraMap_maximalIdeal_le h hx⟩
-        by simp, map_smul, ← residue_smul_cotangent]
-      exact smul_mem _ _ (ihx <| map_algebraMap_maximalIdeal_le h hx)
+      rw [show (⟨a • x, hy⟩ : maximalIdeal A) = a • ⟨x, this hx⟩ by simp, map_smul,
+        ← residue_smul_cotangent]
+      exact smul_mem _ _ (ihx <| this hx)
   · rintro _ ⟨y, rfl⟩; induction y with
     | zero => simp
     | tmul _ x =>
@@ -1122,19 +1147,19 @@ theorem mapCotangent_comp_baseCotangentMap {f : A ⟶ B} [Algebra.IsIntegral Λ 
     (h : Ideal.comap (algebraMap Λ k) ⊥ = maximalIdeal Λ) :
     (mapCotangent f).comp (A.baseCotangentMap h) = B.baseCotangentMap h := by
   sorry
-/-
+
 theorem mapRelCotangent_comp_cotangentToRelCotangent {f : A ⟶ B} :
     (mapRelCotangent f).comp A.cotangentToRelCotangent =
       B.cotangentToRelCotangent.comp (mapCotangent f) := by sorry
 
 @[stacks 06S3 "(2) => (3)"]
 theorem surjective_mapRelCotangent_of_surjective_mapCotangent {f : A ⟶ B}
-    (hf : Surjective (mapCotangent f)) : Surjective (mapRelCotangent f) := by sorry-/
+    (hf : Surjective (mapCotangent f)) : Surjective (mapRelCotangent f) := by sorry
 
 end IsLocalRing
 
 end Cotangent
-/--/
+
 end LocAlgCat
 
 /-- The complete base category for deformation theory over `Λ`. This is the full subcategory of
