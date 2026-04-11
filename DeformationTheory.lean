@@ -734,6 +734,7 @@ abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
   mapOfQuot f _ _ (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
     Ideal.comap_comap, AlgHom.comp_algebraMap, ← Ideal.map_le_iff_le_comap])
 
+@[simp]
 lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (A : LocAlgCat.{w} Λ k) {y : Λ} (y_in : y ∈ maximalIdeal Λ) :
     algebraMap Λ A.specialFiber y = 0 := by
@@ -1004,9 +1005,8 @@ def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B whe
 
 @[simp]
 lemma mapCotangent_toCotangent (f : A ⟶ B) (a : maximalIdeal A) :
-    mapCotangent f ((maximalIdeal A).toCotangent a) =
-      (maximalIdeal B).toCotangent ⟨f.toAlgHom a, by
-        rw [← Ideal.mem_comap, f.comap_maximalIdeal_eq]; exact a.prop⟩ := by simp [mapCotangent]
+    mapCotangent f ((maximalIdeal A).toCotangent a) = (maximalIdeal B).toCotangent ⟨f.toAlgHom a,
+      by rw [← Ideal.mem_comap, f.comap_maximalIdeal_eq]; exact a.prop⟩ := by simp [mapCotangent]
 
 section IsLocalRing
 
@@ -1066,8 +1066,7 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
     | zero => simp
     | tmul x y =>
       rcases (maximalIdeal Λ).toCotangent_surjective y with ⟨y, rfl⟩
-      simp [baseCotangentMap_tmul, mapCotangent_toCotangent, Ideal.toCotangent_eq_zero,
-        algebraMap_specialFiber_apply_eq_zero]
+      simp [mapCotangent_toCotangent, Ideal.toCotangent_eq_zero]
     | add x y hx hy => simp [hx, hy]
   · rcases x with ⟨x, x_in⟩
     simp only [mapCotangent_toCotangent, toAlgHom_toOfQuot_apply, Ideal.toCotangent_eq_zero] at hx
