@@ -254,13 +254,19 @@ open Submodule
 
 variable {A : Type*} [CommRing A]
 
-/-- The canonical surjective `A`-linear map from `I` to the cotangent space
-of its image in `A / J`. -/
+/-- The canonical surjective map from `I` to the cotangent space of its image in `A / J`. -/
 def toCotangentMapMk (I J : Ideal A) : I →ₗ[A] (I.map (Ideal.Quotient.mk J)).Cotangent where
   toFun x := (I.map (Ideal.Quotient.mk J)).toCotangent ⟨Ideal.Quotient.mk J x,
     Ideal.mem_map_of_mem _ x.prop⟩
   map_add' _ _ := rfl
   map_smul' _ _ := rfl
+
+lemma surjective_toCotangentMapMk (I J : Ideal A) :
+    Function.Surjective (I.toCotangentMapMk J) := fun x ↦ by
+  rcases toCotangent_surjective _ x with ⟨⟨x, h⟩, rfl⟩
+  rw [mem_map_iff_of_surjective _ Quotient.mk_surjective] at h
+  obtain ⟨x, x_in, rfl⟩ := h
+  exact ⟨⟨x, x_in⟩, rfl⟩
 
 lemma ker_toCotangentMapMk (I J : Ideal A) :
     LinearMap.ker (I.toCotangentMapMk J) = (Submodule.comap I.subtype J) ⊔ I • ⊤ := by
@@ -277,14 +283,7 @@ lemma ker_toCotangentMapMk (I J : Ideal A) :
   rw [← hyz]
   exact Ideal.sub_mem _ x.prop (pow_le y_in)
 
-lemma surjective_toCotangentMapMk (I J : Ideal A) :
-    Function.Surjective (I.toCotangentMapMk J) := fun x ↦ by
-  rcases toCotangent_surjective _ x with ⟨⟨x, h⟩, rfl⟩
-  rw [mem_map_iff_of_surjective _ Quotient.mk_surjective] at h
-  obtain ⟨x, x_in, rfl⟩ := h
-  exact ⟨⟨x, x_in⟩, rfl⟩
-
-/-- The `A`-linear equivalence between the cotangent space of the image of `I` in `A / J` and
+/-- The linear equivalence between the cotangent space of the image of `I` in `A / J` and
 `I / ((I ∩ J) + I^2)`. -/
 noncomputable def cotangentMapMkEquiv (I J : Ideal A) :
     (I.map (Ideal.Quotient.mk J)).Cotangent ≃ₗ[A] I ⧸ (Submodule.comap I.subtype J) ⊔ I • ⊤ :=
@@ -428,7 +427,7 @@ compatible with the residue maps. -/
 structure Hom (A B : LocAlgCat.{w} Λ k) where
   /-- The underlying algebra map. -/
   toAlgHom : A →ₐ[Λ] B
-  -- This is intended to avoid introducing `IsLocalHom` instances for `AlgHom`.
+  -- We do not use `IsLocalHom` to avoid introducing `IsLocalHom` instances for `AlgHom`.
   comap_maximalIdeal_eq : (maximalIdeal B).comap toAlgHom = maximalIdeal A
   residue_comp : B.residue.comp toAlgHom = A.residue
 
@@ -626,6 +625,15 @@ def ofQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : LocAlgCat.{w
 lemma residue_ofQuot_mk_apply (h : I ≠ ⊤) (a : A) :
     (A.ofQuot h).residue (Ideal.Quotient.mk I a) = A.residue a := rfl
 
+/-- xxx -/
+abbrev algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : Algebra A (A.ofQuot h) :=
+  Ideal.Quotient.algebra _
+
+lemma isScalarTower_algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) :
+    @IsScalarTower Λ A (A.ofQuot h) _ (A.algebraOfQuot h).toSMul _ :=
+  letI := A.algebraOfQuot h
+  .of_algebraMap_eq fun _ ↦ rfl
+
 /-- Upgrades the canonical quotient map from `A` to `A ⧸ I` to a morphism in `LocAlgCat`. -/
 def toOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : A ⟶ ofQuot A h :=
   letI : Nontrivial (A ⧸ I) := Submodule.Quotient.nontrivial_iff.mpr h
@@ -638,6 +646,23 @@ def toOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : A ⟶ ofQu
 @[simp]
 lemma toAlgHom_toOfQuot_apply (h : I ≠ ⊤) (a : A) :
     (A.toOfQuot h).toAlgHom a = Ideal.Quotient.mk I a := rfl
+
+@[simp]
+lemma ker_toAlgHom_toOfQuot (h : I ≠ ⊤) : RingHom.ker (A.toOfQuot h).toAlgHom = I := Ideal.mk_ker
+
+lemma surjective_toAlgHom_toOfQuot (h : I ≠ ⊤) : Surjective (A.toOfQuot h).toAlgHom :=
+  Ideal.Quotient.mk_surjective
+
+theorem map_toAlgHom_toOfQuot_maximalIdeal_eq (h : I ≠ ⊤) :
+    (maximalIdeal A).map (A.toOfQuot h).toAlgHom = maximalIdeal (A.ofQuot h) := eq_maximalIdeal (by
+  rcases Ideal.map_eq_top_or_isMaximal_of_surjective _ (surjective_toAlgHom_toOfQuot h)
+    (maximalIdeal.isMaximal A) with h' | _
+  · rw [← (Ideal.comap_injective_of_surjective _ (surjective_toAlgHom_toOfQuot h)).eq_iff,
+      Ideal.comap_top, Ideal.comap_map_of_surjective' _ (surjective_toAlgHom_toOfQuot h),
+      ker_toAlgHom_toOfQuot, sup_eq_left.mpr (le_maximalIdeal h)] at h'
+    have := (maximalIdeal.isMaximal A).ne_top
+    contradiction
+  · assumption)
 
 /-- The morphism between quotient objects in `LocAlgCat` induced by a morphism `f : A ⟶ B`
 . This is the categorical counterpart to `Ideal.quotientMapₐ`. -/
@@ -663,8 +688,15 @@ def mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
     rcases Ideal.Quotient.mk_surjective x with ⟨x, rfl⟩
     exact DFunLike.congr_fun f.residue_comp x )
 
+@[simp, reassoc]
 theorem toOfQuot_comp_mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
     (hf : I ≤ J.comap f.toAlgHom) : A.toOfQuot h ≫ mapOfQuot f h h' hf = f ≫ B.toOfQuot h' := rfl
+
+@[simp]
+lemma toAlgHom_mapOfQuot_apply (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
+    (hf : I ≤ J.comap f.toAlgHom) (a : A) :
+    (mapOfQuot f h h' hf).toAlgHom (Ideal.Quotient.mk I a) = Ideal.Quotient.mk J (f.toAlgHom a) :=
+  rfl
 
 /-- The quotient of a local algebra by the `n`-th power of its maximal ideal.
 Geometrically, this represents an infinitesimal neighborhood of the closed point. -/
@@ -701,6 +733,17 @@ abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (f : A ⟶ B) : A.specialFiber ⟶ B.specialFiber :=
   mapOfQuot f _ _ (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
     Ideal.comap_comap, AlgHom.comp_algebraMap, ← Ideal.map_le_iff_le_comap])
+
+lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+    (A : LocAlgCat.{w} Λ k) {y : Λ} (y_in : y ∈ maximalIdeal Λ) :
+    algebraMap Λ A.specialFiber y = 0 := by
+  let : Algebra A A.specialFiber := A.algebraOfQuot map_algebraMap_maximalIdeal_ne_top
+  have : IsScalarTower Λ A A.specialFiber :=
+    A.isScalarTower_algebraOfQuot map_algebraMap_maximalIdeal_ne_top
+  have : algebraMap Λ A (y : Λ) ∈ (maximalIdeal Λ).map (algebraMap Λ A) :=
+    Ideal.mem_map_of_mem _ y_in
+  rw [IsScalarTower.algebraMap_apply Λ A A.specialFiber]
+  exact Ideal.Quotient.eq_zero_iff_mem.mpr this
 
 end ofQuot
 
@@ -1005,19 +1048,61 @@ def baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap Λ k)]
     IsLocalRing.residue_surjective
   TensorProduct.AlgebraTensorModule.lift (LinearMap.toSpanSingleton k _ baseMap)
 
+@[simp]
 lemma baseCotangentMap_tmul [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap Λ k)]
     (r : k) (a : CotangentSpace Λ) : A.baseCotangentMap (r ⊗ₜ a) =
       r • ((maximalIdeal Λ).mapCotangent (maximalIdeal A) (Algebra.ofId Λ A) (by
         change _ ≤ Ideal.comap (algebraMap Λ A) _
         rw [comap_algebraMap_maximalIdeal]) a) := rfl
 
+open Submodule in
 theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap Λ k)] :
-    A.baseCotangentMap.range = (mapCotangent A.toSpecialFiber).ker := by sorry
+    A.baseCotangentMap.range = (mapCotangent A.toSpecialFiber).ker := ext fun x ↦ by
+  rcases (maximalIdeal A).toCotangent_surjective x with ⟨x, rfl⟩
+  rw [LinearMap.mem_range, LinearMap.mem_ker]
+  refine ⟨fun ⟨y, hy⟩ ↦ ?_, fun hx ↦ ?_⟩
+  · rw [← hy]; clear * -
+    induction y with
+    | zero => simp
+    | tmul x y =>
+      rcases (maximalIdeal Λ).toCotangent_surjective y with ⟨y, rfl⟩
+      simp [baseCotangentMap_tmul, mapCotangent_toCotangent, Ideal.toCotangent_eq_zero,
+        algebraMap_specialFiber_apply_eq_zero]
+    | add x y hx hy => simp [hx, hy]
+  · rcases x with ⟨x, x_in⟩
+    simp only [mapCotangent_toCotangent, toAlgHom_toOfQuot_apply, Ideal.toCotangent_eq_zero] at hx
+    rw [← toAlgHom_toOfQuot_apply, ← map_toAlgHom_toOfQuot_maximalIdeal_eq, ← Ideal.map_pow,
+      ← Ideal.mem_comap, Ideal.comap_map_of_surjective' _ (surjective_toAlgHom_toOfQuot
+        map_algebraMap_maximalIdeal_ne_top), ker_toAlgHom_toOfQuot, mem_sup] at hx
+    rcases hx with ⟨u, u_in, v, v_in, huv⟩
+    simp_rw [← LinearMap.mem_range, ← huv]
+    have pow_le : maximalIdeal A ^ 2 ≤ maximalIdeal A := Ideal.pow_le_self (by simp)
+    change (maximalIdeal A).toCotangent ⟨u, pow_le u_in⟩ + (maximalIdeal A).toCotangent
+      ⟨v, map_maximalIdeal_le _ v_in⟩ ∈ _
+    rw [(Ideal.toCotangent_eq_zero ..).mpr ‹_›, zero_add]
+    clear * -; rw [Ideal.map, Ideal.span] at v_in
+    induction v_in using span_induction with
+    | mem _ hx =>
+      obtain ⟨x, x_in, rfl⟩ := hx
+      exact ⟨1 ⊗ₜ (maximalIdeal Λ).toCotangent ⟨x, x_in⟩, by simp⟩
+    | zero =>
+      use 0; simp [show (⟨0, _⟩ : maximalIdeal A) = 0 by rfl]
+    | add z w hz hw ihz ihw =>
+      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
+      rw [show (⟨z + w, _⟩ : maximalIdeal A) = ⟨z, map_maximalIdeal_le _ hz⟩ +
+        ⟨w, map_maximalIdeal_le _ hw⟩ by simp, map_add]
+      exact add_mem (ihz hz) (ihw hw)
+    | smul a x hx ihx =>
+      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hx
+      rw [show (⟨a • x, _⟩ : maximalIdeal A) = a • ⟨x, map_maximalIdeal_le _ hx⟩ by simp, map_smul,
+        ← residue_smul_cotangent]
+      exact smul_mem _ _ (ihx hx)
+
+theorem exact_baseCotangentMap_mapCotangent_toSpecialFiber [Algebra.IsIntegral Λ k]
+    [IsLocalHom (algebraMap Λ k)] : Exact A.baseCotangentMap (mapCotangent A.toSpecialFiber) :=
+  LinearMap.exact_iff.mpr A.range_baseCotangentMap.symm
 
 end IsLocalRing
-
---/-- xxxx -/
---def cotangentSpaceOfQuotEquiv (I : Ideal A) (h : I ≠ ⊤) : CotangentSpace (ofQuot A h) ≃ₗ[k]
 
 /-
 
@@ -1065,93 +1150,6 @@ abbrev mapRelCotangent (f : A ⟶ B) : A.RelCotangent →ₗ[k] B.RelCotangent :
 section IsLocalRing
 
 variable [IsLocalRing Λ]
-
-/-- The cotangent space of the special fiber of the local algebra `A` over `Λ`. -/
-abbrev MaximalIdealQuotSup (A : LocAlgCat.{w} Λ k) : Type w :=
-  (maximalIdeal A) ⧸ (Submodule.comap (maximalIdeal A).subtype
-    ((maximalIdeal Λ).map (algebraMap Λ A))) ⊔ (maximalIdeal A) • ⊤
-
-open Submodule in
-lemma isTorsionBySet_MaximalIdealQuotSup_maximalIdeal (A : LocAlgCat.{w} Λ k) :
-    Module.IsTorsionBySet A A.MaximalIdealQuotSup (maximalIdeal A) := by
-  simp only [Module.IsTorsionBySet, SetLike.coe_sort_coe, Subtype.forall]
-  intro x a a_in
-  rcases Submodule.Quotient.mk_surjective _ x with ⟨x, rfl⟩
-  rw [← Quotient.mk_smul, Quotient.mk_eq_zero]
-  exact mem_sup_right (smul_mem_smul a_in (by simp))
-
-instance : Module (ResidueField A) (MaximalIdealQuotSup A) :=
-  A.isTorsionBySet_MaximalIdealQuotSup_maximalIdeal.module
-
-instance : Module k (MaximalIdealQuotSup A) :=
-  .compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
-
-instance : IsScalarTower A (ResidueField A) A.MaximalIdealQuotSup :=
-  .of_algebraMap_smul fun _ _ ↦ rfl
-
-instance : IsScalarTower A k (MaximalIdealQuotSup A) := by
-  refine .of_algebraMap_smul fun r x ↦ ?_
-  change (A.residueEquiv.symm (A.residue r)) • x = _
-  have := residueEquiv_residue_apply (x := r)
-  rw [← AlgEquiv.eq_symm_apply] at this
-  rw [← this, ← ResidueField.algebraMap_eq, IsScalarTower.algebraMap_smul (ResidueField A)]
-
-set_option backward.isDefEq.respectTransparency false in
-/-- The canonical `k`-linear map from the cotangent space of `A` to
-the cotangent space of the special fiber. -/
-abbrev cotangentToMaximalIdealQuotSup (A : LocAlgCat.{w} Λ k) :
-    CotangentSpace A →ₗ[k] A.MaximalIdealQuotSup :=
-  ((Submodule.factor (by simp))).extendScalarsOfSurjective A.surj
-
-lemma cotangentToMaximalIdealQuotSup_toCotangent (a : maximalIdeal A) :
-    A.cotangentToMaximalIdealQuotSup ((maximalIdeal A).toCotangent a) = Submodule.Quotient.mk a :=
-  rfl
-
-theorem surjective_cotangentToMaximalIdealQuotSup :
-    Surjective A.cotangentToMaximalIdealQuotSup := fun r ↦ by
-  simpa using Submodule.factor_surjective (by simp) r
-
-open Submodule in
-theorem ker_cotangentToMaximalIdealQuotSup_eq [Algebra.IsIntegral Λ k]
-    [IsLocalHom (algebraMap Λ k)] : A.cotangentToMaximalIdealQuotSup.ker =
-      A.baseCotangentMap.range  := by
-  refine le_antisymm ?_ ?_
-  · intro x hx
-    rcases (maximalIdeal A).toCotangent_surjective x with ⟨x, rfl⟩
-    simp_rw [LinearMap.mem_ker, cotangentToMaximalIdealQuotSup_toCotangent, Quotient.mk_eq_zero,
-      mem_sup, mem_comap, subtype_apply] at hx
-    rcases hx with ⟨y, y_in, z, z_in, h'⟩
-    rw [mem_smul_top_iff, smul_eq_mul, ← pow_two] at z_in
-    rw [← h', map_add, ((maximalIdeal A).toCotangent_eq_zero z).mpr z_in, add_zero]
-    clear z z_in h' x; rcases y with ⟨y, hy⟩
-    simp only [Ideal.map, Ideal.span] at y_in
-    have : Ideal.map (algebraMap Λ A) (maximalIdeal Λ) ≤ maximalIdeal A :=
-      ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp (by infer_instance)
-    induction y_in using span_induction with
-    | mem _ hx =>
-      obtain ⟨x, x_in, rfl⟩ := hx
-      exact ⟨1 ⊗ₜ (maximalIdeal Λ).toCotangent ⟨x, x_in⟩, by simp⟩
-    | zero => use 0; simp [show (⟨0, hy⟩ : maximalIdeal A) = 0 by rfl]
-    | add z w hz hw ihz ihw =>
-      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
-      rw [show (⟨z + w, hy⟩ : maximalIdeal A) = ⟨z, this hz⟩ + ⟨w, this hw⟩ by simp, map_add]
-      exact add_mem (ihz <| this hz) (ihw <| this hw)
-    | smul a x hx ihx =>
-      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hx
-      rw [show (⟨a • x, hy⟩ : maximalIdeal A) = a • ⟨x, this hx⟩ by simp, map_smul,
-        ← residue_smul_cotangent]
-      exact smul_mem _ _ (ihx <| this hx)
-  · rintro _ ⟨y, rfl⟩; induction y with
-    | zero => simp
-    | tmul _ x =>
-      obtain ⟨x, rfl⟩ := (maximalIdeal Λ).toCotangent_surjective x
-      rw [baseCotangentMap_tmul, LinearMap.mem_ker, map_smul, smul_eq_zero]
-      right; simp_rw [Ideal.mapCotangent_toCotangent, cotangentToMaximalIdealQuotSup_toCotangent,
-        Submodule.Quotient.mk_eq_zero, mem_sup, mem_comap, subtype_apply]
-      refine ⟨⟨algebraMap Λ A x, ?_⟩, Ideal.mem_map_of_mem _ x.prop, 0, by simp⟩
-      rw [← Ideal.mem_comap, comap_algebraMap_maximalIdeal]
-      exact x.prop
-    | add x y hx hy => rw [map_add]; exact add_mem hx hy
 
 theorem exact_baseCotangentMap_cotangentToMaximalIdealQuotSup [Algebra.IsIntegral Λ k]
     [IsLocalHom (algebraMap Λ k)] : Exact A.baseCotangentMap A.cotangentToMaximalIdealQuotSup :=
