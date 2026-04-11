@@ -582,8 +582,9 @@ lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ] [IsLocalHom (algebraMap Λ 
   rw [eq_comm, ← this, IsScalarTower.algebraMap_eq Λ A, ← Ideal.comap_comap,
     eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _ A.surj)]
 
-lemma map_algebraMap_maximalIdeal_ne_top [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
-    (maximalIdeal Λ).map (algebraMap Λ A) ≠ ⊤ := ne_top_of_le_ne_top
+instance [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
+    Nontrivial (A ⧸ ((maximalIdeal Λ).map (algebraMap Λ A))) :=
+  Ideal.Quotient.nontrivial_iff.mpr <| ne_top_of_le_ne_top
   (maximalIdeal.isMaximal A).ne_top <| ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp
     (by infer_instance)
 
@@ -711,24 +712,15 @@ abbrev mapInfinitesimalNeighborhood {m n : ℕ} (hm : m ≠ 0) (hn : n ≠ 0) (h
 the extended maximal ideal of `Λ`, viewed as an object in `LocAlgCat`. -/
 abbrev specialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (A : LocAlgCat.{w} Λ k) : LocAlgCat.{w} Λ k :=
-  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
-    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
   A.ofQuot ((maximalIdeal Λ).map (algebraMap Λ A))
 
 /-- The canonical morphism from `A` to its special fiber. -/
 abbrev toSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
-    (A : LocAlgCat.{w} Λ k) : A ⟶ A.specialFiber :=
-  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
-    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
-  toOfQuot ..
+    (A : LocAlgCat.{w} Λ k) : A ⟶ A.specialFiber := toOfQuot ..
 
 /-- The morphism between special fibers induced by a morphism between two objects. -/
 abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (f : A ⟶ B) : A.specialFiber ⟶ B.specialFiber :=
-  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
-    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
-  letI : Nontrivial (B ⧸ (maximalIdeal Λ).map (algebraMap Λ B)) :=
-    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
   mapOfQuot f (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
     Ideal.comap_comap, AlgHom.comp_algebraMap, ← Ideal.map_le_iff_le_comap])
 
@@ -1029,10 +1021,7 @@ instance [Algebra.IsIntegral Λ k] : IsScalarTower Λ (ResidueField Λ) (Cotange
     ← IsScalarTower.algebraMap_apply, IsScalarTower.algebraMap_smul]
 
 theorem surjective_mapCotangent_toSpecialFiber [IsLocalHom (algebraMap Λ k)] :
-    Surjective (mapCotangent A.toSpecialFiber) :=
-  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
-    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
-  surjective_mapCotangent_toOfQuot
+    Surjective (mapCotangent A.toSpecialFiber) := surjective_mapCotangent_toOfQuot
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
 to the cotangent space of `A`, induced by the algebra structure map. -/
@@ -1067,8 +1056,6 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
     | add x y hx hy => simp [hx, hy]
   · rcases x with ⟨x, x_in⟩
     simp only [mapCotangent_toCotangent, toAlgHom_toOfQuot_apply, Ideal.toCotangent_eq_zero] at hx
-    have : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
-      Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
     rw [← toAlgHom_toOfQuot_apply, ← map_toAlgHom_toOfQuot_maximalIdeal_eq, ← Ideal.map_pow,
       ← Ideal.mem_comap, Ideal.comap_map_of_surjective' _ surjective_toAlgHom_toOfQuot,
       ker_toAlgHom_toOfQuot, mem_sup] at hx
@@ -1250,7 +1237,7 @@ abbrev ιToCBaseCat (Λ : Type u) [CommRing Λ] (k : Type v) [Field k] [Algebra 
     BaseCat.{w} Λ k ⥤ CBaseCat.{w} Λ k :=
   ObjectProperty.ιOfLE fun _ _ ↦ ⟨inferInstance, inferInstance⟩
 
-variable {A B C : BaseCat.{w} Λ k} {f : A ⟶ B}
+variable {A B : BaseCat.{w} Λ k} {f : A ⟶ B}
 
 variable (Λ k) in
 /-- The object in the base category associated to a type equipped with appropriate typeclasses.
