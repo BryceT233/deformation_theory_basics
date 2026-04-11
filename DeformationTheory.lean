@@ -592,90 +592,72 @@ section ofQuot
 variable {I : Ideal A}
 
 /-- The residue algebra structure on `ofQuot`. -/
-abbrev ofQuotResidueAlgebra (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) :
-    Algebra (A ⧸ I) k :=
-  (Ideal.Quotient.lift I (algebraMap A k) fun a a_in ↦ by
-    rw [← residue_apply, residue_eq_zero_iff]
-    exact le_maximalIdeal h a_in).toAlgebra
+instance ofQuotResidueAlgebra (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
+    Algebra (A ⧸ I) k := (Ideal.Quotient.lift I (algebraMap A k) fun a a_in ↦ by
+  rw [← residue_apply, residue_eq_zero_iff]
+  exact le_maximalIdeal (by rwa [← Ideal.Quotient.nontrivial_iff]) a_in).toAlgebra
 
-lemma isScalarTower_ofQuotResidueAlgebra (h : I ≠ ⊤) :
-    @IsScalarTower Λ (A ⧸ I) k _ (ofQuotResidueAlgebra A h).toSMul _ :=
-  letI : Algebra (A ⧸ I) k := ofQuotResidueAlgebra A h
-  .of_algebraMap_eq fun r ↦ by
-    rw [IsScalarTower.algebraMap_apply Λ A (A ⧸ I), Ideal.Quotient.algebraMap_eq,
-      RingHom.algebraMap_toAlgebra, Ideal.Quotient.lift_mk, IsScalarTower.algebraMap_apply Λ A]
+instance isScalarTower_ofQuotResidueAlgebra [Nontrivial (A ⧸ I)] : IsScalarTower Λ (A ⧸ I) k :=
+  .of_algebraMap_eq fun r ↦ by rw [IsScalarTower.algebraMap_apply Λ A (A ⧸ I),
+    Ideal.Quotient.algebraMap_eq, RingHom.algebraMap_toAlgebra, Ideal.Quotient.lift_mk,
+    IsScalarTower.algebraMap_apply Λ A]
 
-lemma isScalarTower_ofQuotResidueAlgebra' (h : I ≠ ⊤) :
-    @IsScalarTower A (A ⧸ I) k _ (ofQuotResidueAlgebra A h).toSMul _ :=
-  letI : Algebra (A ⧸ I) k := ofQuotResidueAlgebra A h
-  .of_algebraMap_eq fun _ ↦ by rw [RingHom.algebraMap_toAlgebra,
-    Ideal.Quotient.algebraMap_eq, Ideal.Quotient.lift_mk]
+instance isScalarTower_ofQuotResidueAlgebra' [Nontrivial (A ⧸ I)] : IsScalarTower A (A ⧸ I) k :=
+  .of_algebraMap_eq fun _ ↦ by rw [RingHom.algebraMap_toAlgebra, Ideal.Quotient.algebraMap_eq,
+    Ideal.Quotient.lift_mk]
 
 /-- The quotient of an object `A` in `LocAlgCat` by a proper ideal `I`. -/
-def ofQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : LocAlgCat.{w} Λ k :=
-  letI : Nontrivial (A ⧸ I) := Submodule.Quotient.nontrivial_iff.mpr h
+def ofQuot (A : LocAlgCat.{w} Λ k) (I : Ideal A) [Nontrivial (A ⧸ I)] : LocAlgCat.{w} Λ k :=
   letI : IsLocalRing (A ⧸ I) := .of_surjective' _ Ideal.Quotient.mk_surjective
-  letI : Algebra (A ⧸ I) k := A.ofQuotResidueAlgebra h
-  letI : IsScalarTower Λ (A ⧸ I) k := A.isScalarTower_ofQuotResidueAlgebra h
   of Λ k (A ⧸ I) (Surjective.of_comp (g := Ideal.Quotient.mk _) (by
     rw [← RingHom.coe_comp, RingHom.algebraMap_toAlgebra, Ideal.Quotient.lift_comp_mk]
     exact A.surj))
 
 @[simp]
-lemma residue_ofQuot_mk_apply (h : I ≠ ⊤) (a : A) :
-    (A.ofQuot h).residue (Ideal.Quotient.mk I a) = A.residue a := rfl
+lemma residue_ofQuot_mk_apply [Nontrivial (A ⧸ I)] (a : A) :
+    (A.ofQuot I).residue (Ideal.Quotient.mk I a) = A.residue a := rfl
 
-/-- xxx -/
-abbrev algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : Algebra A (A.ofQuot h) :=
-  Ideal.Quotient.algebra _
+instance algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
+    Algebra A (A.ofQuot I) := Ideal.Quotient.algebra _
 
-lemma isScalarTower_algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) :
-    @IsScalarTower Λ A (A.ofQuot h) _ (A.algebraOfQuot h).toSMul _ :=
-  letI := A.algebraOfQuot h
-  .of_algebraMap_eq fun _ ↦ rfl
+instance isScalarTower_algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
+    IsScalarTower Λ A (A.ofQuot I) := .of_algebraMap_eq fun _ ↦ rfl
 
 /-- Upgrades the canonical quotient map from `A` to `A ⧸ I` to a morphism in `LocAlgCat`. -/
-def toOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} (h : I ≠ ⊤) : A ⟶ ofQuot A h :=
-  letI : Nontrivial (A ⧸ I) := Submodule.Quotient.nontrivial_iff.mpr h
+def toOfQuot (A : LocAlgCat.{w} Λ k) (I : Ideal A) [Nontrivial (A ⧸ I)] : A ⟶ A.ofQuot I :=
   letI : IsLocalRing (A ⧸ I) := .of_surjective' _ Ideal.Quotient.mk_surjective
-  letI : Algebra (A ⧸ I) k := A.ofQuotResidueAlgebra h
-  letI : IsScalarTower Λ (A ⧸ I) k := A.isScalarTower_ofQuotResidueAlgebra h
   ofHom (IsScalarTower.toAlgHom Λ A (A ⧸ I)) (eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective
     _ Ideal.Quotient.mk_surjective)) (by ext; simpa [residue] using residue_ofQuot_mk_apply ..)
 
 @[simp]
-lemma toAlgHom_toOfQuot_apply (h : I ≠ ⊤) (a : A) :
-    (A.toOfQuot h).toAlgHom a = Ideal.Quotient.mk I a := rfl
+lemma toAlgHom_toOfQuot_apply [Nontrivial (A ⧸ I)] (a : A) :
+    (A.toOfQuot I).toAlgHom a = Ideal.Quotient.mk I a := rfl
 
 @[simp]
-lemma ker_toAlgHom_toOfQuot (h : I ≠ ⊤) : RingHom.ker (A.toOfQuot h).toAlgHom = I := Ideal.mk_ker
+lemma ker_toAlgHom_toOfQuot [Nontrivial (A ⧸ I)] : RingHom.ker (A.toOfQuot I).toAlgHom = I :=
+  Ideal.mk_ker
 
-lemma surjective_toAlgHom_toOfQuot (h : I ≠ ⊤) : Surjective (A.toOfQuot h).toAlgHom :=
+lemma surjective_toAlgHom_toOfQuot [Nontrivial (A ⧸ I)] : Surjective (A.toOfQuot I).toAlgHom :=
   Ideal.Quotient.mk_surjective
 
-theorem map_toAlgHom_toOfQuot_maximalIdeal_eq (h : I ≠ ⊤) :
-    (maximalIdeal A).map (A.toOfQuot h).toAlgHom = maximalIdeal (A.ofQuot h) := eq_maximalIdeal (by
-  rcases Ideal.map_eq_top_or_isMaximal_of_surjective _ (surjective_toAlgHom_toOfQuot h)
+theorem map_toAlgHom_toOfQuot_maximalIdeal_eq [Nontrivial (A ⧸ I)] :
+    (maximalIdeal A).map (A.toOfQuot I).toAlgHom = maximalIdeal (A.ofQuot I) := eq_maximalIdeal (by
+  rcases Ideal.map_eq_top_or_isMaximal_of_surjective _ (surjective_toAlgHom_toOfQuot (I := I))
     (maximalIdeal.isMaximal A) with h' | _
-  · rw [← (Ideal.comap_injective_of_surjective _ (surjective_toAlgHom_toOfQuot h)).eq_iff,
-      Ideal.comap_top, Ideal.comap_map_of_surjective' _ (surjective_toAlgHom_toOfQuot h),
-      ker_toAlgHom_toOfQuot, sup_eq_left.mpr (le_maximalIdeal h)] at h'
+  · rw [← (Ideal.comap_injective_of_surjective _ surjective_toAlgHom_toOfQuot).eq_iff,
+      Ideal.comap_top, Ideal.comap_map_of_surjective' _ surjective_toAlgHom_toOfQuot,
+      ker_toAlgHom_toOfQuot, sup_eq_left.mpr (le_maximalIdeal
+        (by rwa [← Ideal.Quotient.nontrivial_iff]))] at h'
     have := (maximalIdeal.isMaximal A).ne_top
     contradiction
   · assumption)
 
-/-- The morphism between quotient objects in `LocAlgCat` induced by a morphism `f : A ⟶ B`
-. This is the categorical counterpart to `Ideal.quotientMapₐ`. -/
-def mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
-    (hf : I ≤ J.comap f.toAlgHom) : ofQuot A h ⟶ ofQuot B h' :=
-  haveI : Nontrivial (A ⧸ I) := Submodule.Quotient.nontrivial_iff.mpr h
+/-- The morphism between quotient objects in `LocAlgCat` induced by a morphism `f : A ⟶ B`.
+This is the categorical counterpart to `Ideal.quotientMapₐ`. -/
+def mapOfQuot (f : A ⟶ B) {J : Ideal B} [Nontrivial (A ⧸ I)] [Nontrivial (B ⧸ J)]
+    (hf : I ≤ J.comap f.toAlgHom) : A.ofQuot I ⟶ B.ofQuot J :=
   haveI : IsLocalRing (A ⧸ I) := .of_surjective' _ Ideal.Quotient.mk_surjective
-  haveI : Nontrivial (B ⧸ J) := Submodule.Quotient.nontrivial_iff.mpr h'
   haveI : IsLocalRing (B ⧸ J) := .of_surjective' _ Ideal.Quotient.mk_surjective
-  letI : Algebra (A ⧸ I) k := A.ofQuotResidueAlgebra h
-  haveI : IsScalarTower Λ (A ⧸ I) k := isScalarTower_ofQuotResidueAlgebra h
-  letI : Algebra (B ⧸ J) k := B.ofQuotResidueAlgebra h'
-  haveI : IsScalarTower Λ (B ⧸ J) k := isScalarTower_ofQuotResidueAlgebra h'
   ofHom (Ideal.quotientMapₐ J f.toAlgHom hf) (by
     rw [← (Ideal.comap_injective_of_surjective _ Ideal.Quotient.mk_surjective).eq_iff,
       ← Ideal.comap_coe (Ideal.quotientMapₐ J f.toAlgHom hf), Ideal.comap_comap]
@@ -689,62 +671,73 @@ def mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
     exact DFunLike.congr_fun f.residue_comp x )
 
 @[simp, reassoc]
-theorem toOfQuot_comp_mapOfQuot (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
-    (hf : I ≤ J.comap f.toAlgHom) : A.toOfQuot h ≫ mapOfQuot f h h' hf = f ≫ B.toOfQuot h' := rfl
+theorem toOfQuot_comp_mapOfQuot (f : A ⟶ B) {J : Ideal B} [Nontrivial (A ⧸ I)] [Nontrivial (B ⧸ J)]
+    (hf : I ≤ J.comap f.toAlgHom) : A.toOfQuot I ≫ mapOfQuot f hf = f ≫ B.toOfQuot J := rfl
 
 @[simp]
-lemma toAlgHom_mapOfQuot_apply (f : A ⟶ B) {J : Ideal B} (h : I ≠ ⊤) (h' : J ≠ ⊤)
-    (hf : I ≤ J.comap f.toAlgHom) (a : A) :
-    (mapOfQuot f h h' hf).toAlgHom (Ideal.Quotient.mk I a) = Ideal.Quotient.mk J (f.toAlgHom a) :=
-  rfl
+lemma toAlgHom_mapOfQuot_apply (f : A ⟶ B) {J : Ideal B} [Nontrivial (A ⧸ I)] [Nontrivial (B ⧸ J)]
+    (hf : I ≤ J.comap f.toAlgHom) (a : A) : (mapOfQuot f hf).toAlgHom (Ideal.Quotient.mk I a) =
+      Ideal.Quotient.mk J (f.toAlgHom a) := rfl
 
 /-- The quotient of a local algebra by the `n`-th power of its maximal ideal.
 Geometrically, this represents an infinitesimal neighborhood of the closed point. -/
 abbrev infinitesimalNeighborhood {n : ℕ} (hn : n ≠ 0) (A : LocAlgCat.{w} Λ k) : LocAlgCat Λ k :=
-  ofQuot A ((maximalIdeal A ^ n).ne_top_iff_exists_maximal.mpr ⟨maximalIdeal A,
-    maximalIdeal.isMaximal A, Ideal.pow_le_self hn⟩)
+  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ n) := by
+    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
+    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self hn⟩
+  A.ofQuot (maximalIdeal A ^ n)
 
 /-- The canonical quotient morphism from `A` to its infinitesimal neighborhood. -/
 abbrev toInfinitesimalNeighborhood {n : ℕ} (hn : n ≠ 0) (A : LocAlgCat.{w} Λ k) :
-    A ⟶ A.infinitesimalNeighborhood hn := toOfQuot ..
+    A ⟶ A.infinitesimalNeighborhood hn :=
+  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ n) := by
+    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
+    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self hn⟩
+  toOfQuot ..
 
 /-- The morphism between infinitesimal neighborhoods induced by a morphism in `LocAlgCat`. -/
 abbrev mapInfinitesimalNeighborhood {m n : ℕ} (hm : m ≠ 0) (hn : n ≠ 0) (hmn : n ≤ m) (f : A ⟶ B) :
     A.infinitesimalNeighborhood hm ⟶ B.infinitesimalNeighborhood hn :=
-  mapOfQuot f ((maximalIdeal A ^ m).ne_top_iff_exists_maximal.mpr ⟨maximalIdeal A,
-    maximalIdeal.isMaximal A, Ideal.pow_le_self hm⟩)
-  ((maximalIdeal B ^ n).ne_top_iff_exists_maximal.mpr ⟨maximalIdeal B, maximalIdeal.isMaximal B,
-    Ideal.pow_le_self hn⟩) (le_trans (Ideal.pow_le_pow_right hmn) (f.comap_maximalIdeal_eq ▸
+  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ m) := by
+    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
+    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self hm⟩
+  letI : Nontrivial (B ⧸ (maximalIdeal B) ^ n) := by
+    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
+    exact ⟨maximalIdeal B, maximalIdeal.isMaximal B, Ideal.pow_le_self hn⟩
+  mapOfQuot f (le_trans (Ideal.pow_le_pow_right hmn) (f.comap_maximalIdeal_eq ▸
       Ideal.le_comap_pow f.toAlgHom n))
 
 /-- The special fiber of `A` over `Λ` when `Λ` is a local ring, defined as the quotient by
 the extended maximal ideal of `Λ`, viewed as an object in `LocAlgCat`. -/
 abbrev specialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (A : LocAlgCat.{w} Λ k) : LocAlgCat.{w} Λ k :=
-  ofQuot A map_algebraMap_maximalIdeal_ne_top
+  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
+    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
+  A.ofQuot ((maximalIdeal Λ).map (algebraMap Λ A))
 
 /-- The canonical morphism from `A` to its special fiber. -/
 abbrev toSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (A : LocAlgCat.{w} Λ k) : A ⟶ A.specialFiber :=
+  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
+    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
   toOfQuot ..
 
 /-- The morphism between special fibers induced by a morphism between two objects. -/
 abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (f : A ⟶ B) : A.specialFiber ⟶ B.specialFiber :=
-  mapOfQuot f _ _ (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
+  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
+    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
+  letI : Nontrivial (B ⧸ (maximalIdeal Λ).map (algebraMap Λ B)) :=
+    Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
+  mapOfQuot f (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
     Ideal.comap_comap, AlgHom.comp_algebraMap, ← Ideal.map_le_iff_le_comap])
 
 @[simp]
 lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
     (A : LocAlgCat.{w} Λ k) {y : Λ} (y_in : y ∈ maximalIdeal Λ) :
     algebraMap Λ A.specialFiber y = 0 := by
-  let : Algebra A A.specialFiber := A.algebraOfQuot map_algebraMap_maximalIdeal_ne_top
-  have : IsScalarTower Λ A A.specialFiber :=
-    A.isScalarTower_algebraOfQuot map_algebraMap_maximalIdeal_ne_top
-  have : algebraMap Λ A (y : Λ) ∈ (maximalIdeal Λ).map (algebraMap Λ A) :=
-    Ideal.mem_map_of_mem _ y_in
   rw [IsScalarTower.algebraMap_apply Λ A A.specialFiber]
-  exact Ideal.Quotient.eq_zero_iff_mem.mpr this
+  exact Ideal.Quotient.eq_zero_iff_mem.mpr (Ideal.mem_map_of_mem _ y_in)
 
 end ofQuot
 
@@ -1008,6 +1001,16 @@ lemma mapCotangent_toCotangent (f : A ⟶ B) (a : maximalIdeal A) :
     mapCotangent f ((maximalIdeal A).toCotangent a) = (maximalIdeal B).toCotangent ⟨f.toAlgHom a,
       by rw [← Ideal.mem_comap, f.comap_maximalIdeal_eq]; exact a.prop⟩ := by simp [mapCotangent]
 
+@[stacks 06S3 "(1) => (2)"]
+theorem surjective_mapCotangent_toOfQuot {I : Ideal A} [Nontrivial (A ⧸ I)] :
+    Surjective (mapCotangent (A.toOfQuot I)) := by
+  have : RingHom.ker (algebraMap A (A.ofQuot I)) ≤ maximalIdeal A := le_maximalIdeal (by
+    change RingHom.ker (A.toOfQuot I).toAlgHom ≠ _
+    rwa [ker_toAlgHom_toOfQuot, ← Ideal.Quotient.nontrivial_iff])
+  refine Ideal.mapCotangent_surjective_of_comap_eq (fun _ ↦ Ideal.Quotient.mk_surjective _) ?_
+  rw [sup_eq_right.mpr this]
+  exact (A.toOfQuot I).comap_maximalIdeal_eq
+
 section IsLocalRing
 
 variable [IsLocalRing Λ]
@@ -1026,16 +1029,10 @@ instance [Algebra.IsIntegral Λ k] : IsScalarTower Λ (ResidueField Λ) (Cotange
     ← IsScalarTower.algebraMap_apply, IsScalarTower.algebraMap_smul]
 
 theorem surjective_mapCotangent_toSpecialFiber [IsLocalHom (algebraMap Λ k)] :
-    Surjective (mapCotangent A.toSpecialFiber) := by
-  let : Algebra A A.specialFiber := Ideal.Quotient.algebra A
-  have : Nontrivial (A ⧸ Ideal.map (algebraMap Λ A) (maximalIdeal Λ)) :=
+    Surjective (mapCotangent A.toSpecialFiber) :=
+  letI : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
     Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
-  have : IsLocalHom (algebraMap A A.specialFiber) := Ideal.Quotient.mk_surjective.isLocalHom
-  have : RingHom.ker (algebraMap A A.specialFiber) ≤ maximalIdeal A := by
-    change RingHom.ker (Ideal.Quotient.mk _) ≤ _
-    simpa using ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp (by infer_instance)
-  refine Ideal.mapCotangent_surjective_of_comap_eq (fun _ ↦ Ideal.Quotient.mk_surjective _) ?_
-  rw [sup_eq_right.mpr this, maximalIdeal_comap]
+  surjective_mapCotangent_toOfQuot
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
 to the cotangent space of `A`, induced by the algebra structure map. -/
@@ -1070,9 +1067,11 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
     | add x y hx hy => simp [hx, hy]
   · rcases x with ⟨x, x_in⟩
     simp only [mapCotangent_toCotangent, toAlgHom_toOfQuot_apply, Ideal.toCotangent_eq_zero] at hx
+    have : Nontrivial (A ⧸ (maximalIdeal Λ).map (algebraMap Λ A)) :=
+      Ideal.Quotient.nontrivial_iff.mpr map_algebraMap_maximalIdeal_ne_top
     rw [← toAlgHom_toOfQuot_apply, ← map_toAlgHom_toOfQuot_maximalIdeal_eq, ← Ideal.map_pow,
-      ← Ideal.mem_comap, Ideal.comap_map_of_surjective' _ (surjective_toAlgHom_toOfQuot
-        map_algebraMap_maximalIdeal_ne_top), ker_toAlgHom_toOfQuot, mem_sup] at hx
+      ← Ideal.mem_comap, Ideal.comap_map_of_surjective' _ surjective_toAlgHom_toOfQuot,
+      ker_toAlgHom_toOfQuot, mem_sup] at hx
     rcases hx with ⟨u, u_in, v, v_in, huv⟩
     simp_rw [← LinearMap.mem_range, ← huv]
     have pow_le : maximalIdeal A ^ 2 ≤ maximalIdeal A := Ideal.pow_le_self (by simp)
@@ -1261,12 +1260,12 @@ abbrev of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] [Algebra X k]
     BaseCat Λ k := ⟨.of Λ k X hX, inferInstance⟩
 
 /-- The quotient of an object `A` in `BaseCat` by a proper ideal `I`. -/
-def ofQuot (A : BaseCat.{w} Λ k) {I : Ideal A.obj} (h : I ≠ ⊤) : BaseCat Λ k :=
-  ⟨.ofQuot A.obj h, Ideal.Quotient.mk_surjective.isArtinianRing⟩
+def ofQuot (A : BaseCat.{w} Λ k) (I : Ideal A.obj) [Nontrivial (A.obj ⧸ I)] : BaseCat Λ k :=
+  ⟨A.obj.ofQuot I, Ideal.Quotient.mk_surjective.isArtinianRing⟩
 
 /-- Upgrades the canonical quotient map from `A` to `A ⧸ I` to a morphism in `BaseCat`. -/
-def toOfQuot (A : BaseCat.{w} Λ k) {I : Ideal A.obj} (h : I ≠ ⊤) :
-    A ⟶ ofQuot A h := ObjectProperty.homMk (LocAlgCat.toOfQuot A.obj h)
+def toOfQuot (A : BaseCat.{w} Λ k) (I : Ideal A.obj) [Nontrivial (A.obj ⧸ I)] :
+    A ⟶ A.ofQuot I := ObjectProperty.homMk (A.obj.toOfQuot I)
 
 /-- A morphism `f : A ⟶ B` in `BaseCat` is a small extension if it is a surjective map
 whose kernel is a principal ideal annihilated by the maximal ideal of `A`. -/
@@ -1290,18 +1289,17 @@ theorem isSmallExtenstion_iff : IsSmallExtension f ↔ Function.Surjective f.hom
     rw [← x_span, Ideal.span, Submodule.mem_annihilator_span_singleton, smul_eq_mul, mul_comm]
     exact hx y y_in
 
-theorem isSmallExtension_of_bijective (h : Function.Bijective f.hom.toAlgHom) :
-    IsSmallExtension f := (isSmallExtenstion_iff).mpr ⟨h.surjective, 0, by
-  have := h.injective
-  rw [RingHom.injective_iff_ker_eq_bot] at this
-  simp [this]⟩
+theorem isSmallExtension_of_bijective (h : Bijective f.hom.toAlgHom) : IsSmallExtension f :=
+  (isSmallExtenstion_iff).mpr ⟨h.surjective, 0, by
+    have := h.injective
+    rw [RingHom.injective_iff_ker_eq_bot] at this
+    simp [this]⟩
 
-theorem IsSmallExtension.toOfQuot_span_singleton (A : BaseCat.{w} Λ k) {x : A.obj}
-    (h : ¬ IsUnit x) (h' : ∀ y ∈ maximalIdeal A.obj, x * y = 0) :
-    IsSmallExtension (A.toOfQuot ((Ideal.span {x}).ne_top_iff_exists_maximal.mpr
-      ⟨maximalIdeal A.obj, inferInstance, by simpa⟩)) := by
+theorem IsSmallExtension.toOfQuot_span_singleton (A : BaseCat.{w} Λ k) (x : A.obj)
+    [Nontrivial (A.obj ⧸ (Ideal.span {x}))] (h : ∀ y ∈ maximalIdeal A.obj, x * y = 0) :
+    IsSmallExtension (A.toOfQuot (Ideal.span {x})) := by
   rw [isSmallExtenstion_iff]
-  refine ⟨Ideal.Quotient.mk_surjective, x, ?_, h'⟩
+  refine ⟨Ideal.Quotient.mk_surjective, x, ?_, h⟩
   ext; rw [← Submodule.Quotient.mk_eq_zero]
   exact Iff.rfl
 
@@ -1340,19 +1338,13 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
         (RingHom.ker_ne_top f.hom.toAlgHom)⟩
     have : Nontrivial (A.obj ⧸ Ideal.span {x}) := Ideal.Quotient.nontrivial_iff.mpr span_ne_top
     have : IsLocalRing (A.obj ⧸ Ideal.span {x}) := .of_surjective' _ Ideal.Quotient.mk_surjective
-    let : Algebra (A.obj ⧸ Ideal.span {x}) k := LocAlgCat.ofQuotResidueAlgebra A.obj span_ne_top
-    have : IsScalarTower Λ (A.obj ⧸ Ideal.span {x}) k :=
-      LocAlgCat.isScalarTower_ofQuotResidueAlgebra span_ne_top
-    have : IsScalarTower A.obj (A.obj ⧸ Ideal.span {x}) k :=
-      LocAlgCat.isScalarTower_ofQuotResidueAlgebra' span_ne_top
     have aux : ∀ a ∈ Ideal.span {x}, (LocAlgCat.Hom.toAlgHom f.hom) a = 0 := by
       intro _ h; rw [Ideal.mem_span_singleton'] at h
       rcases h with ⟨_, rfl⟩; rw [← RingHom.mem_ker]
       exact Ideal.mul_mem_left _ _ x_in
-    let C := ofQuot A span_ne_top
-    let g : A ⟶ C := toOfQuot A span_ne_top
-    have hg : IsSmallExtension g := IsSmallExtension.toOfQuot_span_singleton A
-      (by simpa using span_ne_top) hx
+    let C := A.ofQuot (Ideal.span {x})
+    let g : A ⟶ C := A.toOfQuot (Ideal.span {x})
+    have hg : IsSmallExtension g := IsSmallExtension.toOfQuot_span_singleton A x hx
     let u : C.obj →ₐ[Λ] B.obj := Ideal.Quotient.liftₐ (Ideal.span {x}) f.hom.toAlgHom aux
     have u_surj : Surjective u :=
       Ideal.Quotient.lift_surjective_of_surjective (Ideal.span {x}) aux hf
