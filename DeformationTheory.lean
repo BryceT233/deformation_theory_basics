@@ -405,7 +405,7 @@ abbrev of (X : Type w) [CommRing X] [IsLocalRing X] [Algebra Λ X] [Algebra X k]
     [IsScalarTower Λ X k] (h : Surjective (algebraMap X k)) : LocAlgCat Λ k :=
   ⟨X, h⟩
 
-@[simp]
+variable (X) in
 lemma coe_of : (of Λ k X hX : Type w) = X := rfl
 
 @[simp]
@@ -584,9 +584,8 @@ lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ] [IsLocalHom (algebraMap Λ 
 
 instance [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
     Nontrivial (A ⧸ ((maximalIdeal Λ).map (algebraMap Λ A))) :=
-  Ideal.Quotient.nontrivial_iff.mpr <| ne_top_of_le_ne_top
-  (maximalIdeal.isMaximal A).ne_top <| ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp
-    (by infer_instance)
+  Ideal.Quotient.nontrivial_iff.mpr <| ne_top_of_le_ne_top (maximalIdeal.isMaximal A).ne_top <|
+    ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp (by infer_instance)
 
 section ofQuot
 
@@ -642,16 +641,8 @@ lemma surjective_toAlgHom_toOfQuot [Nontrivial (A ⧸ I)] : Surjective (A.toOfQu
   Ideal.Quotient.mk_surjective
 
 theorem map_toAlgHom_toOfQuot_maximalIdeal_eq [Nontrivial (A ⧸ I)] :
-    (maximalIdeal A).map (A.toOfQuot I).toAlgHom = maximalIdeal (A.ofQuot I) := eq_maximalIdeal (by
-  rcases Ideal.map_eq_top_or_isMaximal_of_surjective _ (surjective_toAlgHom_toOfQuot (I := I))
-    (maximalIdeal.isMaximal A) with h' | _
-  · rw [← (Ideal.comap_injective_of_surjective _ surjective_toAlgHom_toOfQuot).eq_iff,
-      Ideal.comap_top, Ideal.comap_map_of_surjective' _ surjective_toAlgHom_toOfQuot,
-      ker_toAlgHom_toOfQuot, sup_eq_left.mpr (le_maximalIdeal
-        (by rwa [← Ideal.Quotient.nontrivial_iff]))] at h'
-    have := (maximalIdeal.isMaximal A).ne_top
-    contradiction
-  · assumption)
+    (maximalIdeal A).map (A.toOfQuot I).toAlgHom = maximalIdeal (A.ofQuot I) :=
+  map_maximalIdeal_of_surjective _ surjective_toAlgHom_toOfQuot
 
 /-- The morphism between quotient objects in `LocAlgCat` induced by a morphism `f : A ⟶ B`.
 This is the categorical counterpart to `Ideal.quotientMapₐ`. -/
@@ -1052,7 +1043,7 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
     | zero => simp
     | tmul x y =>
       rcases (maximalIdeal Λ).toCotangent_surjective y with ⟨y, rfl⟩
-      simp [mapCotangent_toCotangent, Ideal.toCotangent_eq_zero]
+      simp [Ideal.toCotangent_eq_zero]
     | add x y hx hy => simp [hx, hy]
   · rcases x with ⟨x, x_in⟩
     simp only [mapCotangent_toCotangent, toAlgHom_toOfQuot_apply, Ideal.toCotangent_eq_zero] at hx
@@ -1070,8 +1061,7 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
     | mem _ hx =>
       obtain ⟨x, x_in, rfl⟩ := hx
       exact ⟨1 ⊗ₜ (maximalIdeal Λ).toCotangent ⟨x, x_in⟩, by simp⟩
-    | zero =>
-      use 0; simp [show (⟨0, _⟩ : maximalIdeal A) = 0 by rfl]
+    | zero => use 0; simp [show (⟨0, _⟩ : maximalIdeal A) = 0 by rfl]
     | add z w hz hw ihz ihw =>
       change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
       rw [show (⟨z + w, _⟩ : maximalIdeal A) = ⟨z, map_maximalIdeal_le _ hz⟩ +
