@@ -12,33 +12,6 @@ public import Mathlib
 
 universe w w' v u
 
-lemma Order.krullDim_le_of_orderEmbedding {α β : Type*} [Preorder α] [PartialOrder β] (e : α ↪o β) :
-    Order.krullDim α ≤ Order.krullDim β := by
-  have (b : β) : Subsingleton (e ⁻¹' {b}) := Set.Subsingleton.coe_sort <|
-    Set.Subsingleton.preimage Set.subsingleton_singleton e.injective
-  simpa using Order.krullDim_le_of_krullDim_preimage_le' e e.monotone fun _ ↦
-    Order.krullDim_nonpos_of_subsingleton
-
-theorem Submodule.length_le_length_restrictScalar (A R M : Type*) [Ring A] [Ring R] [SMul A R]
-    [AddCommGroup M] [Module A M] [Module R M] [IsScalarTower A R M] (p : Submodule R M) :
-    Module.length R p ≤ Module.length A (p.restrictScalars A) := by
-  rw [← WithBot.coe_le_coe, Module.coe_length, Module.coe_length]
-  exact Order.krullDim_le_of_orderEmbedding (restrictScalarsEmbedding A R p)
-
-lemma ENat.lt_add_left {n k : ℕ∞} (h : n ≠ ⊤) (h' : 0 < k) : n < k + n := calc
-    _ = 0 + n := (zero_add n).symm
-    _ < k + n := (add_lt_add_iff_right h).mpr h'
-
-theorem Submodule.length_quotient_lt {R M : Type*} [Ring R] [AddCommGroup M] [Module R M]
-    [IsArtinian R M] [IsNoetherian R M] (p : Submodule R M) (h : p ≠ ⊥) :
-    Module.length R (M ⧸ p) < Module.length R M := by
-  rw [Module.length_eq_add_of_exact p.subtype p.mkQ p.subtype_injective p.mkQ_surjective
-    (LinearMap.exact_subtype_mkQ p)]
-  exact ENat.lt_add_left Module.length_ne_top
-    (Module.length_pos_iff.mpr (nontrivial_iff_ne_bot.mpr h))
-
---------------------------------------------------------------------------------
-
 -- goes to `Mathlib.RingTheory.Ideal.Maps`
 
 open Submodule in
@@ -851,7 +824,7 @@ theorem finrank_mul_length {M : Type*} [AddCommGroup M] [Module A M] [Module Λ 
     infer_instance
   by_cases h : length A M = ⊤
   · rw [h, ENat.mul_top this, eq_comm, eq_top_iff, ← h]
-    have := Submodule.length_le_length_restrictScalar Λ A M ⊤
+    have := Submodule.length_le_length_restrictScalars (R := A) (M := M) Λ ⊤
     rwa [length_top, Submodule.restrictScalars_top, length_top] at this
   obtain ⟨n, hn⟩ : ∃ n : ℕ, n = length A M := ENat.ne_top_iff_exists.mp h
   revert M; induction n using Nat.strong_induction_on with
@@ -931,7 +904,7 @@ instance [IsArtinianRing A] [IsArtinianRing B] (f : A ⟶ C) (g : B ⟶ C) :
       exact WithTop.add_ne_top.mpr ⟨Module.length_ne_top, Module.length_ne_top⟩
     · exact Module.length_le_of_injective (Submodule.subtype PB.toSubmodule)
         (Submodule.subtype_injective _)
-  have := Submodule.length_le_length_restrictScalar Λ PB PB ⊤
+  have := Submodule.length_le_length_restrictScalars (R := PB) (M := PB) Λ ⊤
   rwa [Module.length_top, Submodule.restrictScalars_top, Module.length_top] at this
 
 theorem isArtinianRing_pullback [IsArtinianRing A] [IsArtinianRing B] (f : A ⟶ C) (g : B ⟶ C)
@@ -1191,12 +1164,10 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] [IsLocalHom (algebraMap
       exact ⟨1 ⊗ₜ (maximalIdeal Λ).toCotangent ⟨x, x_in⟩, by simp⟩
     | zero => use 0; simp [show (⟨0, _⟩ : maximalIdeal A) = 0 by rfl]
     | add z w hz hw ihz ihw =>
-      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hz hw
       rw [show (⟨z + w, _⟩ : maximalIdeal A) = ⟨z, map_maximalIdeal_le _ hz⟩ +
         ⟨w, map_maximalIdeal_le _ hw⟩ by simp, map_add]
       exact add_mem (ihz hz) (ihw hw)
     | smul a x hx ihx =>
-      change _ ∈ (maximalIdeal Λ).map (algebraMap Λ A) at hx
       rw [show (⟨a • x, _⟩ : maximalIdeal A) = a • ⟨x, map_maximalIdeal_le _ hx⟩ by simp, map_smul,
         ← residue_smul_cotangent]
       exact smul_mem _ _ (ihx hx)
@@ -1367,8 +1338,8 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
       · apply ih m h; exact hm
       · exact u_surj
     change Module.length (A.obj ⧸ Ideal.span {x}) (A.obj ⧸ Ideal.span {x}) = m at hm
-    have := Submodule.length_le_length_restrictScalar A.obj (A.obj ⧸ Ideal.span {x})
-      (A.obj ⧸ Ideal.span {x}) ⊤
+    have := Submodule.length_le_length_restrictScalars (R := (A.obj ⧸ Ideal.span {x}))
+      (M := (A.obj ⧸ Ideal.span {x})) A.obj ⊤
     rw [Module.length_top, restrictScalars_top, Module.length_top] at this
     rw [← ENat.coe_lt_coe, ← hlen, ← hm]
     exact lt_of_le_of_lt this (length_quotient_lt (Ideal.span {x}) (by simpa))
