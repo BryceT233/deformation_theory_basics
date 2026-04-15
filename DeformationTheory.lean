@@ -702,32 +702,32 @@ instance isScalarTower_ofPullbackResidueAlgebra :
     IsScalarTower Λ (f.toAlgHom.pullback g.toAlgHom) k := .of_algebraMap_eq (by
   simp [RingHom.algebraMap_toAlgebra])
 
-/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `LocAlgCat`
-where `g.toAlgHom` is surjective, `ofPullback f g h` constructs the pullback
-`AlgHom.pullback f.toAlgHom g.toAlgHom` as an object in `LocAlgCat`. -/
-def ofPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
+/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `LocAlgCat` where `g.toAlgHom` is surjective,
+`ofPullback` is the object in `LocAlgCat` obtained from the pullback of the underlying
+algebra homomorphisms`. -/
+def ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) : LocAlgCat.{w} Λ k :=
   letI : IsLocalRing ↥(f.toAlgHom.pullback g.toAlgHom) :=
-    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨h.isLocalHom.map_nonunit⟩
+    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨hg.isLocalHom.map_nonunit⟩
   of Λ k (f.toAlgHom.pullback g.toAlgHom) (by
     simpa [RingHom.algebraMap_toAlgebra] using Surjective.comp A.surj
-      (AlgHom.surjective_pullbackFst_of_surjective _ _ h))
+      (AlgHom.surjective_pullbackFst_of_surjective _ _ hg))
 
 @[simp]
-lemma coe_ofPullback (h : Surjective g.toAlgHom) :
-    (ofPullback f g h : Type w) = f.toAlgHom.pullback g.toAlgHom := by simp [ofPullback]
+lemma coe_ofPullback (hg : Surjective g.toAlgHom) :
+    (ofPullback f g hg : Type w) = f.toAlgHom.pullback g.toAlgHom := by simp [ofPullback]
 
 @[simp]
-lemma residue_ofPullback_apply (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom)
-    (u : f.toAlgHom.pullback g.toAlgHom) : (ofPullback f g h).residue u = A.residue u.val.1 := by
+lemma residue_ofPullback_apply (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom)
+    (u : f.toAlgHom.pullback g.toAlgHom) : (ofPullback f g hg).residue u = A.residue u.val.1 := by
   rfl
 
 /-- Upgrades the first projection map from the pullback algebra to a morphism in `LocAlgCat`. -/
-abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (h : Surjective g.toAlgHom) :
-    ofPullback f g h ⟶ A :=
+def fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.toAlgHom) :
+    ofPullback f g hg ⟶ A :=
   letI : IsLocalRing ↥(f.toAlgHom.pullback g.toAlgHom) :=
-    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨h.isLocalHom.map_nonunit⟩
+    isLocalRing_algHomPullback f.toAlgHom g.toAlgHom ⟨hg.isLocalHom.map_nonunit⟩
   ⟨f.toAlgHom.pullbackFst g.toAlgHom, eq_maximalIdeal <| Ideal.comap_isMaximal_of_surjective _
-    (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom h), rfl⟩
+    (AlgHom.surjective_pullbackFst_of_surjective f.toAlgHom g.toAlgHom hg), rfl⟩
 
 open Polynomial in
 private lemma not_isUnit_aeval_of_aeval_eq_zero [IsLocalRing Λ] [Algebra.IsIntegral Λ k] (x : k)
@@ -1240,7 +1240,7 @@ def ofQuot (A : BaseCat.{w} Λ k) (I : Ideal A.obj) [Nontrivial (A.obj ⧸ I)] :
   ⟨A.obj.ofQuot I, Ideal.Quotient.mk_surjective.isArtinianRing⟩
 
 /-- Upgrades the canonical quotient map from `A` to `A ⧸ I` to a morphism in `BaseCat`. -/
-def toOfQuot (A : BaseCat.{w} Λ k) (I : Ideal A.obj) [Nontrivial (A.obj ⧸ I)] :
+abbrev toOfQuot (A : BaseCat.{w} Λ k) (I : Ideal A.obj) [Nontrivial (A.obj ⧸ I)] :
     A ⟶ A.ofQuot I := ObjectProperty.homMk (A.obj.toOfQuot I)
 
 /-- A morphism `f : A ⟶ B` in `BaseCat` is a small extension if it is a surjective map
@@ -1348,12 +1348,14 @@ section
 
 variable [IsLocalRing Λ] [Module.Finite Λ k]
 
-/-- xxxx -/
+/-- Given morphisms `f : A ⟶ C` and `g : B ⟶ C` in `BaseCat` where `g.hom.toAlgHom` is surjective,
+`ofPullback` is the object in `BaseCat` obtained from the pullback of the underlying
+algebra homomorphisms`. -/
 @[stacks 06GH "(1)" ]
 def ofPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.hom.toAlgHom) : BaseCat.{w} Λ k :=
   ⟨.ofPullback f.hom g.hom hg, LocAlgCat.isArtinianRing_pullback ..⟩
 
-/-- xxxx -/
+/-- Upgrades the first projection map from the pullback algebra to a morphism in `BaseCat`. -/
 abbrev fromOfPullback (f : A ⟶ C) (g : B ⟶ C) (hg : Surjective g.hom.toAlgHom) :
     ofPullback f g hg ⟶ A := ObjectProperty.homMk (LocAlgCat.fromOfPullback f.hom g.hom hg)
 
@@ -1402,10 +1404,6 @@ instance fromOfPullback_isSmallExtension (f : A ⟶ C) (g : B ⟶ C) [IsSmallExt
 /-- xxxx -/
 abbrev ofPullbackOfIsSeparable [Algebra.IsSeparable (ResidueField Λ) k] (f : A ⟶ C) (g : B ⟶ C) :
     BaseCat Λ k :=
-  letI : Algebra (f.hom.toAlgHom.pullback g.hom.toAlgHom) k :=
-    (A.obj.residue.comp (f.hom.toAlgHom.pullbackFst g.hom.toAlgHom)).toAlgebra
-  letI : IsScalarTower Λ (f.hom.toAlgHom.pullback g.hom.toAlgHom) k := .of_algebraMap_eq (by
-    simp [RingHom.algebraMap_toAlgebra])
   haveI : IsLocalRing ↥(f.hom.toAlgHom.pullback g.hom.toAlgHom) :=
     isLocalRing_algHomPullback _ _ g.hom.isLocalHom_toAlgHom
   ⟨.of Λ k (f.hom.toAlgHom.pullback g.hom.toAlgHom)
