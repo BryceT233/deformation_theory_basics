@@ -550,7 +550,7 @@ def mapOfQuot (f : A ⟶ B) {J : Ideal B} [Nontrivial (A ⧸ I)] [Nontrivial (B 
     rcases Ideal.Quotient.mk_surjective x with ⟨x, rfl⟩
     exact DFunLike.congr_fun f.residue_comp x )
 
-@[simp, reassoc]
+@[simp]
 theorem toOfQuot_comp_mapOfQuot (f : A ⟶ B) {J : Ideal B} [Nontrivial (A ⧸ I)] [Nontrivial (B ⧸ J)]
     (hf : I ≤ J.comap f.toAlgHom) : A.toOfQuot I ≫ mapOfQuot f hf = f ≫ B.toOfQuot J := rfl
 
@@ -580,7 +580,7 @@ lemma toAlgHom_ofQuotKerIsoOfSurjective_inv_apply {f : A ⟶ B} (h : Surjective 
       Ideal.Quotient.mk (RingHom.ker f.toAlgHom) a :=
   (Ideal.quotientKerAlgEquivOfSurjective h).symm_apply_apply a
 
-@[simp, reassoc]
+@[simp]
 lemma toOfQuot_comp_ofQuotKerIsoOfSurjective_hom {f : A ⟶ B} (h : Surjective f.toAlgHom) :
     A.toOfQuot (RingHom.ker f.toAlgHom) ≫ (ofQuotKerIsoOfSurjective f h).hom = f := Hom.ext rfl
 
@@ -612,6 +612,10 @@ abbrev mapInfinitesimalNeighborhood (m n : ℕ) [NeZero m] [NeZero n] (hmn : n �
   mapOfQuot f (le_trans (Ideal.pow_le_pow_right hmn) (f.comap_maximalIdeal_eq ▸
       Ideal.le_comap_pow f.toAlgHom n))
 
+lemma toInfinitesimalNeighborhood_comp_map (m n : ℕ) [NeZero m] [NeZero n] (hmn : n ≤ m)
+    (f : A ⟶ B) : A.toInfinitesimalNeighborhood m ≫ mapInfinitesimalNeighborhood m n hmn f =
+      f ≫ B.toInfinitesimalNeighborhood n := by simp
+
 /-- The special fiber of `A` over `Λ` when `Λ` is a local ring, defined as the quotient by
 the extended maximal ideal of `Λ`, viewed as an object in `LocAlgCat`. -/
 abbrev specialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
@@ -634,6 +638,11 @@ lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [IsLocalHom (algebr
     algebraMap Λ A.specialFiber y = 0 := by
   rw [IsScalarTower.algebraMap_apply Λ A A.specialFiber]
   exact Ideal.Quotient.eq_zero_iff_mem.mpr (Ideal.mem_map_of_mem _ y_in)
+
+lemma toInfinitesimalNeighborhood_comp_mapInfinitesimalNeighborhood_toSpecialFiber [IsLocalRing Λ]
+    [IsLocalHom (algebraMap Λ k)] (n : ℕ) [NeZero n] (A : LocAlgCat.{w} Λ k) :
+    A.toInfinitesimalNeighborhood n ≫ mapInfinitesimalNeighborhood n n le_rfl A.toSpecialFiber =
+      A.toSpecialFiber ≫ (A.specialFiber).toInfinitesimalNeighborhood n := by simp
 
 end ofQuot
 
@@ -906,20 +915,21 @@ def mapCotangent (f : A ⟶ B) : CotangentSpace A →ₗ[k] CotangentSpace B whe
     · rw [← Ideal.mem_comap]; convert x.prop
       exact f.comap_maximalIdeal_eq
 
-lemma mapCotangent_comp (f : A ⟶ B) (g : B ⟶ C) :
-    mapCotangent (f ≫ g) = mapCotangent g ∘ₗ mapCotangent f := LinearMap.ext fun _ ↦ by
-  simp [mapCotangent, ← LinearMap.comp_apply, ← Ideal.mapCotangent_comp]
-
 @[simp]
 lemma mapCotangent_toCotangent (f : A ⟶ B) (a : maximalIdeal A) :
     mapCotangent f ((maximalIdeal A).toCotangent a) = (maximalIdeal B).toCotangent ⟨f.toAlgHom a,
       by rw [← Ideal.mem_comap, f.comap_maximalIdeal_eq]; exact a.prop⟩ := by simp [mapCotangent]
 
+lemma mapCotangent_comp (f : A ⟶ B) (g : B ⟶ C) :
+    mapCotangent (f ≫ g) = mapCotangent g ∘ₗ mapCotangent f := LinearMap.ext fun _ ↦ by
+  simp [mapCotangent, ← LinearMap.comp_apply, ← Ideal.mapCotangent_comp]
+
 @[simp]
 lemma mapCotangent_id (A : LocAlgCat Λ k) : mapCotangent (𝟙 A) = LinearMap.id := by
   ext x
   rcases (maximalIdeal A).toCotangent_surjective x with ⟨x, rfl⟩
-  simp
+  simp only [mapCotangent_toCotangent, hom_id, AlgHom.coe_id, id_eq, Subtype.coe_eta,
+    LinearMap.id_coe]
 
 /-- The `k`-linear equivalence between cotangent spaces induced by
 an isomorphism in `LocAlgCat`. -/
@@ -1327,15 +1337,19 @@ theorem induction_on_isSmallExtension (hf : Surjective f.hom.toAlgHom)
     rw [← ENat.coe_lt_coe, ← hlen, ← hm]
     exact lt_of_le_of_lt this (length_quotient_lt (Ideal.span {x}) (by simpa))
 
-/-- xxxx -/
-@[stacks 06GF]
-class IsEssSurj (f : A ⟶ B) where
+/-- A morphism `f : A ⟶ B` in the base category is called essentially surjective if its
+underlying algebra homomorphism is surjective, and it satisfies the following minimality
+condition: for any object `C` and morphism `g : C ⟶ A` in `BaseCat`, if the composition
+`g ≫ f` is surjective, then `g` itself must be surjective. -/
+@[stacks 06GF, mk_iff]
+class IsEssSurj (f : A ⟶ B) : Prop where
   surjective (f) : Surjective f.hom.toAlgHom
   surjective_of_comp (f) {C : BaseCat.{w} Λ k} (g : C ⟶ A) : Surjective (g ≫ f).hom.toAlgHom →
     Surjective g.hom.toAlgHom
 
+@[stacks 06S5 "(1) <=> (2)"]
 theorem isEssSurj_iff_isEssSurj_mapInfinitesimalNeighborhood (f : A ⟶ B) : IsEssSurj f ↔
-    IsEssSurj (mapInfinitesimalNeighborhood 2 2 (by lia) f) := sorry
+    IsEssSurj (mapInfinitesimalNeighborhood 2 2 le_rfl f) := sorry
 
 section IsLocalRing
 
@@ -1401,6 +1415,10 @@ def ofPullbackOfIsSeparable [Algebra.IsSeparable (ResidueField Λ) k] (f : A ⟶
     isLocalRing_algHomPullback _ _ g.hom.isLocalHom_toAlgHom
   ⟨.of Λ k (f.hom.toAlgHom.pullback g.hom.toAlgHom)
     (LocAlgCat.surjective_residue_comp_pullbackFst_of_isSeparable f.hom g.hom), inferInstance⟩
+
+theorem isEssSurj_iff_isEssSurj_mapInfinitesimalNeighborhood_mapSpecialFiber
+    [IsLocalHom (algebraMap Λ k)] (f : A ⟶ B) : IsEssSurj f ↔ IsEssSurj
+      (mapInfinitesimalNeighborhood 2 2 le_rfl <| mapSpecialFiber f) := sorry
 
 end IsLocalRing
 
