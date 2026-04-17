@@ -461,6 +461,10 @@ instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) :=
     rwa [← IsScalarTower.algebraMap_eq]
   isLocalHom_of_comp _ (algebraMap A k)
 
+instance (n : ℕ) [NeZero n] : Nontrivial (A ⧸ maximalIdeal A ^ n) := by
+  rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
+  exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self (NeZero.ne n)⟩
+
 lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
     (maximalIdeal A).comap (algebraMap Λ A) = maximalIdeal Λ := by
   have := ((local_hom_TFAE (algebraMap Λ k)).out 0 4).mp ‹_›
@@ -587,28 +591,15 @@ lemma toOfQuot_comp_ofQuotKerIsoOfSurjective_hom {f : A ⟶ B} (h : Surjective f
 /-- The quotient of a local algebra by the `n`-th power of its maximal ideal.
 Geometrically, this represents an infinitesimal neighborhood of the closed point. -/
 abbrev infinitesimalNeighborhood (n : ℕ) [NeZero n] (A : LocAlgCat.{w} Λ k) : LocAlgCat Λ k :=
-  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ n) := by
-    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
-    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self (NeZero.ne n)⟩
   A.ofQuot (maximalIdeal A ^ n)
 
 /-- The canonical quotient morphism from `A` to its infinitesimal neighborhood. -/
 abbrev toInfinitesimalNeighborhood (n : ℕ) [NeZero n] (A : LocAlgCat.{w} Λ k) :
-    A ⟶ A.infinitesimalNeighborhood n :=
-  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ n) := by
-    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
-    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self (NeZero.ne n)⟩
-  toOfQuot ..
+    A ⟶ A.infinitesimalNeighborhood n := toOfQuot ..
 
 /-- The morphism between infinitesimal neighborhoods induced by a morphism in `LocAlgCat`. -/
 abbrev mapInfinitesimalNeighborhood (m n : ℕ) [NeZero m] [NeZero n] (hmn : n ≤ m) (f : A ⟶ B) :
     A.infinitesimalNeighborhood m ⟶ B.infinitesimalNeighborhood n :=
-  letI : Nontrivial (A ⧸ (maximalIdeal A) ^ m) := by
-    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
-    exact ⟨maximalIdeal A, maximalIdeal.isMaximal A, Ideal.pow_le_self (NeZero.ne m)⟩
-  letI : Nontrivial (B ⧸ (maximalIdeal B) ^ n) := by
-    rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
-    exact ⟨maximalIdeal B, maximalIdeal.isMaximal B, Ideal.pow_le_self (NeZero.ne n)⟩
   mapOfQuot f (le_trans (Ideal.pow_le_pow_right hmn) (f.comap_maximalIdeal_eq ▸
       Ideal.le_comap_pow f.toAlgHom n))
 
@@ -868,6 +859,188 @@ theorem isArtinianRing_pullback [IsArtinianRing A] [IsArtinianRing B] (f : A ⟶
   infer_instance
 
 end ArtinianRing
+
+---------------------------------------------------------------------------------
+
+-- From Thmoas-Guan's PR #37975
+
+section
+
+open Ideal Quotient IsLocalRing AdicCompletion
+
+variable {R : Type*} [CommRing R] (I : Ideal R) (M : Type*) [AddCommGroup M] [Module R M]
+
+theorem isLocalRing_of_isAdicComplete_maximal (m : Ideal R) [m.IsMaximal] [IsAdicComplete m R] :
+    IsLocalRing R :=
+  IsLocalRing.of_unique_max_ideal ⟨m, ‹m.IsMaximal›, fun _ hJ ↦
+    (‹m.IsMaximal›.eq_of_le hJ.ne_top <|
+      (IsAdicComplete.le_jacobson_bot m).trans <| sInf_le ⟨bot_le, hJ⟩).symm⟩
+
+lemma AdicCompletion.isAdicComplete_self (fg : I.FG) :
+    IsAdicComplete (I.map (algebraMap R (AdicCompletion I R))) (AdicCompletion I R) :=
+  (IsAdicComplete.map_algebraMap_iff _ _).mpr (AdicCompletion.isAdicComplete fg)
+
+lemma AdicCompletion.isMaximal_map_of_le (m : Ideal R) [m.IsMaximal] (le : I ≤ m) (fg : I.FG) :
+    (m.map (algebraMap R (AdicCompletion I R))).IsMaximal := by
+  have compeq : (AdicCompletion.evalOneₐ I).toRingHom.comp (algebraMap R (AdicCompletion I R)) =
+    (Ideal.Quotient.mk I) := rfl
+  have kerle : RingHom.ker (evalOneₐ I).toRingHom ≤ m.map (algebraMap R (AdicCompletion I R)) := by
+    intro x hx
+    have : x ∈ (AdicCompletion.eval I R 1).ker := by
+      have eq : I ^ 1 * ⊤ = I := by simp
+      simp only [AlgHom.toRingHom_eq_coe, RingHom.mem_ker, RingHom.coe_coe, ← factorₐ_evalₐ_one,
+        pow_one, smul_eq_mul, mul_top, le_refl, ← factor_eval_eq_evalₐ, Submodule.mapQ_eq_factor,
+        Submodule.factor_eq_factor, factor_comp_apply] at hx
+      have : (factor (le_of_eq eq.symm)) ((factor (le_of_eq eq)) ((eval I R 1) x)) = 0 := by
+        simp [hx]
+      simpa using this
+    simp only [smul_eq_mul, ← pow_smul_top_eq_ker_eval fg, pow_one, smul_top_eq_map,
+      Submodule.restrictScalars_mem] at this
+    exact Ideal.map_mono le this
+  have : m.map (algebraMap R (AdicCompletion I R)) = (m.map (Ideal.Quotient.mk I)).comap
+    (AdicCompletion.evalOneₐ I).toRingHom := by
+    rw [← compeq, ← Ideal.map_map,
+      Ideal.comap_map_of_surjective' (evalOneₐ I).toRingHom (evalOneₐ_surjective I),
+      eq_comm, sup_eq_left]
+    exact kerle
+  rw [this]
+  let _ : (Ideal.map (Ideal.Quotient.mk I) m).IsMaximal :=
+    Ideal.IsMaximal.map_of_surjective_of_ker_le Ideal.Quotient.mk_surjective (by simpa using le)
+  exact Ideal.comap_isMaximal_of_surjective _ (evalOneₐ_surjective I)
+
+lemma AdicCompletion.isLocalRing_of_fg [IsLocalRing R] (fg : (maximalIdeal R).FG) :
+    IsLocalRing (AdicCompletion (maximalIdeal R) R) :=
+  @isLocalRing_of_isAdicComplete_maximal _ _
+    ((maximalIdeal R).map (algebraMap R (AdicCompletion (maximalIdeal R) R)))
+    (AdicCompletion.isMaximal_map_of_le _ _ (le_refl _) fg)
+    (AdicCompletion.isAdicComplete_self _ fg)
+
+instance [IsNoetherianRing R] [IsLocalRing R] : IsLocalRing (AdicCompletion (maximalIdeal R) R) :=
+  AdicCompletion.isLocalRing_of_fg (fg_of_isNoetherianRing (maximalIdeal R))
+
+lemma AdicCompletion.maximalIdeal_eq_map_of_fg [IsLocalRing R] (fg : (maximalIdeal R).FG) :
+    letI := AdicCompletion.isLocalRing_of_fg fg
+    maximalIdeal (AdicCompletion (maximalIdeal R) R) =
+    (maximalIdeal R).map (algebraMap R (AdicCompletion (maximalIdeal R) R)) :=
+  letI := AdicCompletion.isLocalRing_of_fg fg
+  (IsLocalRing.eq_maximalIdeal (AdicCompletion.isMaximal_map_of_le _ _ (le_refl _) fg)).symm
+
+lemma AdicCompletion.maximalIdeal_eq_map [IsNoetherianRing R] [IsLocalRing R] :
+    maximalIdeal (AdicCompletion (maximalIdeal R) R) =
+    (maximalIdeal R).map (algebraMap R (AdicCompletion (maximalIdeal R) R)) :=
+  (IsLocalRing.eq_maximalIdeal (AdicCompletion.isMaximal_map_of_le _ _ (le_refl _)
+    (maximalIdeal R).fg_of_isNoetherianRing)).symm
+
+end
+
+---------------------------------------------------------------------------------
+
+-- From Wenrong Zou
+
+section ofTensor
+
+open Algebra TensorProduct
+
+-- probably we should be using `isLocalRing_of_isAdicComplete_maximal` here! (from Bingyu)
+lemma isLocalRing_of_isMaximal_isNilpotent {R : Type*} [CommRing R] {I : Ideal R}
+    (hmax : I.IsMaximal) (hnil : IsNilpotent I) : IsLocalRing R := by
+  obtain ⟨n, hn⟩ := hnil
+  have h_unique_max : ∀ J : Ideal R, J.IsMaximal → J = I := by
+    intro J hJmax
+    have hJ_contain_I : I ≤ J := by
+      have : I ^ n ≤ J := by simp [hn]
+      exact Ideal.IsPrime.le_of_pow_le this
+    exact (Ideal.IsMaximal.eq_of_le hmax (Ideal.IsPrime.ne_top') hJ_contain_I).symm
+  have {a : R} (ha : a ∉ I) : IsUnit a := by
+    contrapose! ha
+    obtain ⟨J, hJ⟩ := Ideal.exists_le_maximal (Ideal.span {a})
+      (mt Ideal.span_singleton_eq_top.mp ha)
+    exact h_unique_max J hJ.1 ▸ hJ.2 (Ideal.mem_span_singleton_self a)
+  refine { toNontrivial := { exists_pair_ne := ?_ }, isUnit_or_isUnit_of_add_one := ?_ }
+  · by_contra! h
+    exact hmax.ne_top (by rw [ Ideal.eq_top_iff_one ] ; exact h _ 1 ▸ Submodule.zero_mem _ );
+  · intro a b hab;
+    by_cases ha : a ∈ I;
+    · by_cases hb : b ∈ I;
+      · exact absurd (I.add_mem ha hb) (hab ▸ (Ideal.ne_top_iff_one I).mp hmax.ne_top)
+      · right
+        exact this hb
+    · left
+      exact this ha
+
+lemma IsNilpotent.ideal_sup {R : Type*} [CommSemiring R] {I J : Ideal R}
+    (hI : IsNilpotent I) (hJ : IsNilpotent J) : IsNilpotent (I ⊔ J) := by
+  obtain ⟨n, hn⟩ := hI
+  obtain ⟨m, hm⟩ := hJ
+  exact ⟨n + m, le_bot_iff.mp (Ideal.sup_pow_add_le_pow_sup_pow.trans (by simp [hn, hm]))⟩
+
+noncomputable def ofTensor (f : A ⟶ B) (g : A ⟶ C)
+  -- in `CBaseCat`, we actually don't necessarily have `IsArtinianRing`, you can search `CBaseCat`
+  -- in the file to see its definition. (from Bingyu)
+    [IsArtinianRing B] [IsArtinianRing C] : LocAlgCat.{w} Λ k :=
+  letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+  letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+  letI φ : B ⊗[A] C →ₐ[A] k := (Algebra.TensorProduct.lift
+    (.mk (algebraMap B k) (AlgHom.congr_fun f.residue_comp))
+      (.mk (algebraMap C k) (AlgHom.congr_fun g.residue_comp))
+        (fun _ _ => mul_comm _ _))
+  letI : Algebra (B ⊗[A] C) k := φ.toRingHom.toAlgebra
+  letI : IsScalarTower Λ A B := .of_algebraMap_eq (fun r => (f.toAlgHom.commutes r).symm)
+  letI : IsScalarTower Λ A C := .of_algebraMap_eq (fun r => (g.toAlgHom.commutes r).symm)
+  letI : IsScalarTower A B k := .of_algebraMap_eq
+    (fun a => (AlgHom.congr_fun f.residue_comp a).symm)
+  letI : IsScalarTower A C k := .of_algebraMap_eq
+    (fun a => (AlgHom.congr_fun g.residue_comp a).symm)
+  -- I got an error here, not sure why. (From Bingyu)
+  haveI : IsScalarTower Λ (B ⊗[A] C) k := .of_algebraMap_eq (fun r => by
+    suffices h : algebraMap Λ k r = φ (algebraMap Λ (TensorProduct A B C) r) from h
+    simp [IsScalarTower.algebraMap_apply Λ A (B ⊗[A] C), IsScalarTower.algebraMap_apply Λ A k, φ])
+  have φ_surj : Surjective φ.toRingHom := fun y => by
+    obtain ⟨b, hb⟩ := B.surj y
+    exact ⟨Algebra.TensorProduct.includeLeft (S := A) b, by simp [φ, hb]⟩
+  have isNil : IsNilpotent (RingHom.ker φ.toRingHom) := by
+    have hB_nil : IsNilpotent (maximalIdeal B) :=
+      (isArtinianRing_iff_isNilpotent_maximalIdeal B).mp inferInstance
+    have hC_nil : IsNilpotent (maximalIdeal C) :=
+      (isArtinianRing_iff_isNilpotent_maximalIdeal C).mp inferInstance
+    let iL : B →+* B ⊗[A] C :=
+      (includeLeft (S := A) (A := B) (B := C)).toRingHom
+    let iR : C →+* B ⊗[A] C :=
+      (Algebra.TensorProduct.includeRight (R := A) (A := B) (B := C)).toRingHom
+    have I_B_nil : IsNilpotent ((maximalIdeal B).map iL) := by
+      obtain ⟨n, hn⟩ := hB_nil
+      exact ⟨n, by simp [← Ideal.map_pow, hn]⟩
+    have I_C_nil : IsNilpotent ((maximalIdeal C).map iR) := by
+      obtain ⟨n, hn⟩ := hC_nil
+      exact ⟨n, by simp [← Ideal.map_pow, hn]⟩
+    have sup_nil := IsNilpotent.ideal_sup I_B_nil I_C_nil
+    have ker_le : RingHom.ker φ.toRingHom ≤ (maximalIdeal B).map iL ⊔ (maximalIdeal C).map iR := by
+      sorry
+    obtain ⟨N, hN⟩ := sup_nil
+    exact ⟨N, le_bot_iff.mp (le_trans (Ideal.pow_right_mono ker_le N) (le_of_eq hN))⟩
+  haveI : IsLocalRing (B ⊗[A] C) := isLocalRing_of_isMaximal_isNilpotent
+    (RingHom.ker_isMaximal_of_surjective _ φ_surj) isNil
+  of Λ k (B ⊗[A] C) φ_surj
+
+end ofTensor
+
+section ofAdicCompletion
+
+variable (A : LocAlgCat.{w} Λ k)
+
+noncomputable instance toAdicCompletionResidueAlgebra :
+    Algebra (AdicCompletion (maximalIdeal A) A) k :=
+  ((residueEquiv A).toRingHom.comp <| (AdicCompletion.evalOneₐ _).toRingHom).toAlgebra
+
+instance isScalarTower_toAdicCompletionResidueAlgebra :
+    IsScalarTower Λ (AdicCompletion (maximalIdeal A) A) k :=
+  .of_algebraMap_eq fun _ => (IsScalarTower.algebraMap_apply Λ A k _) ▸ rfl
+
+noncomputable def ofAdicCompletion (A : LocAlgCat Λ k) [IsNoetherianRing A] :
+    LocAlgCat.{w} Λ k := of Λ k (AdicCompletion (maximalIdeal A) A) <|
+  (Surjective.of_comp_iff' A.residueEquiv.bijective _).mpr (AdicCompletion.evalOneₐ_surjective _)
+
+end ofAdicCompletion
 
 ---------------------------------------------------------------------------------
 
@@ -1349,7 +1522,17 @@ class IsEssSurj (f : A ⟶ B) : Prop where
 
 @[stacks 06S5 "(1) <=> (2)"]
 theorem isEssSurj_iff_isEssSurj_mapInfinitesimalNeighborhood (f : A ⟶ B) : IsEssSurj f ↔
-    IsEssSurj (mapInfinitesimalNeighborhood 2 2 le_rfl f) := sorry
+    IsEssSurj (mapInfinitesimalNeighborhood 2 2 le_rfl f) := by
+  refine ⟨fun ⟨surj, comp⟩ ↦ ?_, fun ⟨surj, comp⟩ ↦ ?_⟩
+  · have : Surjective (mapInfinitesimalNeighborhood 2 2 le_rfl f).hom.toAlgHom := by
+      apply Surjective.of_comp (g := (A.toInfinitesimalNeighborhood 2).hom.toAlgHom)
+      simp only [ObjectProperty.homMk_hom, ← AlgHom.coe_comp, ← LocAlgCat.toAlgHom_comp,
+        LocAlgCat.toOfQuot_comp_mapOfQuot]
+      rw [LocAlgCat.toAlgHom_comp, AlgHom.coe_comp]
+      exact .comp (B.obj.surjective_toAlgHom_toOfQuot (I := maximalIdeal B.obj ^ 2)) surj
+    refine ⟨this, fun {C} g hg ↦ ?_⟩
+    sorry
+  · sorry
 
 section IsLocalRing
 
