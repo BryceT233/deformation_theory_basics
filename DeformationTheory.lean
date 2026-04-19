@@ -194,9 +194,8 @@ lemma Ideal.mapCotangent_comp {R A B C : Type*} [CommRing R] [CommRing A] [CommR
 
 --------------------------------------------------------------------------------
 
-instance IsLocalRing.isLocalHom_algebraMap_of_isIntegral (R k : Type*) [CommRing R]
-    [IsLocalRing R] [Field k] [Algebra R k] [Algebra.IsIntegral R k] :
-    IsLocalHom (algebraMap R k) := by
+instance IsLocalRing.isLocalHom_of_isIntegral (R k : Type*) [CommRing R] [IsLocalRing R]
+    [Field k] [Algebra R k] [Algebra.IsIntegral R k] : IsLocalHom (algebraMap R k) := by
   apply ((local_hom_TFAE (algebraMap R k)).out 0 4).mpr
   rw [maximalIdeal_eq_bot]
   exact eq_maximalIdeal (Algebra.ker_algebraMap_isMaximal_of_isIntegral R k)
@@ -957,15 +956,16 @@ abbrev ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X] [
 lemma isScalarTower_ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X]
     [Algebra X k] [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
     @IsScalarTower Λ (AdicCompletion I X) k _ (ofAdicCompletionResidueAlgebra Λ X hI).toSMul _ :=
-  letI := ofAdicCompletionResidueAlgebra Λ X hI
+  letI : Algebra (AdicCompletion I X) k := ofAdicCompletionResidueAlgebra Λ X hI
   .of_algebraMap_eq fun _ ↦ (IsScalarTower.algebraMap_apply Λ X k _) ▸ rfl
 
 def ofAdicCompletion (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k] [IsScalarTower Λ X k]
     (hX : Surjective (algebraMap X k)) {m : Ideal X} (hm : m = RingHom.ker (algebraMap X k))
     (fg : m.FG) : LocAlgCat.{w} Λ k :=
   haveI : m.IsMaximal := hm ▸ RingHom.ker_isMaximal_of_surjective _ hX
-  haveI := @isLocalRing_of_isAdicComplete_maximal _ _ (m.map (algebraMap X (AdicCompletion m X)))
-    (AdicCompletion.isMaximal_map_of_le m m le_rfl fg) (AdicCompletion.isAdicComplete_self m fg)
+  haveI : IsLocalRing (AdicCompletion m X) := @isLocalRing_of_isAdicComplete_maximal _ _
+    (m.map (algebraMap X (AdicCompletion m X))) (AdicCompletion.isMaximal_map_of_le m m le_rfl fg)
+    (AdicCompletion.isAdicComplete_self m fg)
   letI : Algebra (AdicCompletion m X) k := ofAdicCompletionResidueAlgebra Λ X hm.le
   haveI : IsScalarTower Λ (AdicCompletion m X) k := isScalarTower_ofAdicCompletionResidueAlgebra ..
   of Λ k (AdicCompletion m X) sorry
