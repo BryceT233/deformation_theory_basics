@@ -546,7 +546,8 @@ variable {I : Ideal A}
 
 /-- The residue algebra structure on `ofQuot`. -/
 instance ofQuotResidueAlgebra (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
-    Algebra (A ⧸ I) k := (Ideal.Quotient.lift I (algebraMap A k) fun a a_in ↦ by
+    Algebra (A ⧸ I) k := fast_instance%
+  (Ideal.Quotient.lift I (algebraMap A k) fun a a_in ↦ by
   rw [← residue_apply, residue_eq_zero_iff]
   exact le_maximalIdeal (by rwa [← Ideal.Quotient.nontrivial_iff]) a_in).toAlgebra
 
@@ -571,7 +572,8 @@ lemma residue_ofQuot_mk_apply [Nontrivial (A ⧸ I)] (a : A) :
     (A.ofQuot I).residue (Ideal.Quotient.mk I a) = A.residue a := rfl
 
 instance algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
-    Algebra A (A.ofQuot I) := Ideal.Quotient.algebra _
+    Algebra A (A.ofQuot I) :=
+  fast_instance% Ideal.Quotient.algebra _
 
 instance isScalarTower_algebraOfQuot (A : LocAlgCat.{w} Λ k) {I : Ideal A} [Nontrivial (A ⧸ I)] :
     IsScalarTower Λ A (A.ofQuot I) := .of_algebraMap_eq fun _ ↦ rfl
@@ -706,7 +708,7 @@ section ofPullback
 variable {f : A ⟶ C} {g : B ⟶ C}
 
 instance ofPullbackResidueAlgebra : Algebra (f.toAlgHom.pullback g.toAlgHom) k :=
-  (A.residue.comp (f.toAlgHom.pullbackFst g.toAlgHom)).toAlgebra
+  fast_instance% (A.residue.comp (f.toAlgHom.pullbackFst g.toAlgHom)).toAlgebra
 
 instance isScalarTower_ofPullbackResidueAlgebra :
     IsScalarTower Λ (f.toAlgHom.pullback g.toAlgHom) k := .of_algebraMap_eq (by
@@ -845,7 +847,7 @@ theorem length_restrictScalars {M : Type*} [AddCommGroup M] [Module A M] [Module
     [IsScalarTower Λ A M] : length Λ M = finrank (ResidueField Λ) k * length A M := by
   have : IsLocalHom (algebraMap Λ k) := by
     apply ((local_hom_TFAE (algebraMap Λ k)).out 0 4).mpr
-    rw [maximalIdeal_eq_bot, ← RingHom.ker]
+    rw [maximalIdeal_eq_bot]
     exact eq_maximalIdeal (Algebra.ker_algebraMap_isMaximal_of_isIntegral Λ k)
   rw [IsLocalRing.length_restrictScalars Λ A M, mul_comm, ← length_eq_finrank,
     (A.residueEquiv.toLinearEquiv.extendScalarsOfSurjective <|
@@ -870,7 +872,7 @@ instance [IsArtinianRing A] : IsArtinian Λ A :=
 
 instance [IsArtinianRing A] [IsArtinianRing B] (f : A ⟶ C) (g : B ⟶ C) :
     IsArtinianRing (f.toAlgHom.pullback g.toAlgHom) := by
-  set PB := f.toAlgHom.pullback g.toAlgHom
+  let PB := f.toAlgHom.pullback g.toAlgHom
   rw [isArtinianRing_iff_isFiniteLength, ← Module.length_ne_top_iff]
   refine ne_top_of_le_ne_top (b := Module.length Λ PB) ?_ ?_
   · refine ne_top_of_le_ne_top (b := Module.length Λ (A × B)) ?_ ?_
@@ -903,10 +905,40 @@ lemma exists_mem_maximalIdeal_toAlgHom_apply_add_eq (f : A ⟶ C) (g : B ⟶ C) 
 
 -- From Wenrong Zou
 
-section ofTensor
+noncomputable section ofTensor
 
-open Algebra TensorProduct
+open scoped TensorProduct
 
+instance ofTensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
+    letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+    letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+    Algebra (B ⊗[A] C) k :=
+  letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+  letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+  fast_instance% (Algebra.TensorProduct.lift
+    (.mk (algebraMap B k) (AlgHom.congr_fun f.residue_comp))
+      (.mk (algebraMap C k) (AlgHom.congr_fun g.residue_comp))
+        (fun _ _ ↦ mul_comm _ _)).toRingHom.toAlgebra
+
+instance IsScalarTower_ofTensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
+    letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+    letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+    IsScalarTower Λ (B ⊗[A] C) k :=
+  letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+  letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+  .of_algebraMap_eq (R := Λ) (S := B ⊗[A] C) fun r ↦ by
+    simpa [RingHom.algebraMap_toAlgebra] using IsScalarTower.algebraMap_apply Λ B k _
+
+theorem surjective_algebraMap_ofTensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
+    letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+    letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+    Surjective (algebraMap (B ⊗[A] C) k) := fun y ↦ by
+  letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
+  letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
+  obtain ⟨b, rfl⟩ := B.surj y
+  exact ⟨Algebra.TensorProduct.includeLeft (S := A) b, by simp [RingHom.algebraMap_toAlgebra]⟩
+
+/--/
 -- probably we should be using `isLocalRing_of_isAdicComplete_maximal` here! (from Bingyu)
 lemma isLocalRing_of_isMaximal_isNilpotent {R : Type*} [CommRing R] {I : Ideal R}
     (hmax : I.IsMaximal) (hnil : IsNilpotent I) : IsLocalRing R := by
@@ -946,17 +978,17 @@ noncomputable def ofTensor (f : A ⟶ B) (g : A ⟶ C)
     [IsArtinianRing B] [IsArtinianRing C] : LocAlgCat.{w} Λ k :=
   letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
   letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
-  letI φ : B ⊗[A] C →ₐ[A] k := (Algebra.TensorProduct.lift
-    (.mk (algebraMap B k) (AlgHom.congr_fun f.residue_comp))
-      (.mk (algebraMap C k) (AlgHom.congr_fun g.residue_comp))
-        (fun _ _ => mul_comm _ _))
-  letI : Algebra (B ⊗[A] C) k := φ.toRingHom.toAlgebra
   letI : IsScalarTower Λ A B := .of_algebraMap_eq (fun r => (f.toAlgHom.commutes r).symm)
   letI : IsScalarTower Λ A C := .of_algebraMap_eq (fun r => (g.toAlgHom.commutes r).symm)
   letI : IsScalarTower A B k := .of_algebraMap_eq
     (fun a => (AlgHom.congr_fun f.residue_comp a).symm)
   letI : IsScalarTower A C k := .of_algebraMap_eq
     (fun a => (AlgHom.congr_fun g.residue_comp a).symm)
+  letI φ : B ⊗[A] C →ₐ[A] k := (Algebra.TensorProduct.lift
+    (.mk (algebraMap B k) (AlgHom.congr_fun f.residue_comp))
+      (.mk (algebraMap C k) (AlgHom.congr_fun g.residue_comp))
+        (fun _ _ => mul_comm _ _))
+  letI : Algebra (B ⊗[A] C) k := φ.toRingHom.toAlgebra
   -- I got an error here, not sure why. (From Bingyu)
   haveI : IsScalarTower Λ (B ⊗[A] C) k := .of_algebraMap_eq (fun r => by
     suffices h : algebraMap Λ k r = φ (algebraMap Λ (TensorProduct A B C) r) from h
