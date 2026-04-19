@@ -191,16 +191,15 @@ lemma Ideal.mapCotangent_comp {R A B C : Type*} [CommRing R] [CommRing A] [CommR
   Ideal.mapCotangent I₁ I₃ (g.comp f) (fun _ hx ↦ h₂ (h₁ hx)) =
     (Ideal.mapCotangent I₂ I₃ g h₂).comp (Ideal.mapCotangent I₁ I₂ f h₁) := by
   ext ⟨_, _⟩; rfl
+-------------------------------------------------------------------------------
 
---------------------------------------------------------------------------------
-
-instance IsLocalRing.isLocalHom_of_isIntegral (R k : Type*) [CommRing R] [IsLocalRing R]
-    [Field k] [Algebra R k] [Algebra.IsIntegral R k] : IsLocalHom (algebraMap R k) := by
+lemma IsLocalRing.isLocalHom_of_isIntegral (R k : Type*) [CommRing R] [IsLocalRing R] [Field k]
+    [Algebra R k] [Algebra.IsIntegral R k] : IsLocalHom (algebraMap R k) := by
   apply ((local_hom_TFAE (algebraMap R k)).out 0 4).mpr
   rw [maximalIdeal_eq_bot]
   exact eq_maximalIdeal (Algebra.ker_algebraMap_isMaximal_of_isIntegral R k)
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 /-! # some `ULift` instances.
 goes to where `RingEquiv` API locates. -/
@@ -528,21 +527,25 @@ instance : (uliftFunctor Λ k).Faithful := (fullyFaithfulUliftFunctor Λ k).fait
 instance (f : A ⟶ B) : Nontrivial (A ⧸ RingHom.ker (f.toAlgHom)) :=
   Ideal.Quotient.nontrivial_iff.mpr <| RingHom.ker_ne_top f.toAlgHom
 
-instance [IsLocalHom (algebraMap Λ k)] : IsLocalHom (algebraMap Λ A) :=
-  haveI : IsLocalHom ((algebraMap A k).comp (algebraMap Λ A)) := by
-    rwa [← IsScalarTower.algebraMap_eq]
-  isLocalHom_of_comp _ (algebraMap A k)
+variable (A) in
+lemma isLocalHom_algebraMap [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
+    IsLocalHom (algebraMap Λ A) := by
+  have : IsLocalHom (algebraMap Λ k) := isLocalHom_of_isIntegral Λ k
+  rw [IsScalarTower.algebraMap_eq Λ A] at this
+  exact isLocalHom_of_comp (algebraMap Λ A) (algebraMap A k)
 
-lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
+variable (A) in
+lemma comap_algebraMap_maximalIdeal [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
     (maximalIdeal A).comap (algebraMap Λ A) = maximalIdeal Λ := by
+  have : IsLocalHom (algebraMap Λ k) := isLocalHom_of_isIntegral Λ k
   have := ((local_hom_TFAE (algebraMap Λ k)).out 0 4).mp ‹_›
   rw [eq_comm, ← this, IsScalarTower.algebraMap_eq Λ A, ← Ideal.comap_comap,
     eq_maximalIdeal (Ideal.comap_isMaximal_of_surjective _ A.surj)]
 
-instance [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)] :
+instance [IsLocalRing Λ] [Algebra.IsIntegral Λ k] :
     Nontrivial (A ⧸ ((maximalIdeal Λ).map (algebraMap Λ A))) :=
   Ideal.Quotient.nontrivial_iff.mpr <| ne_top_of_le_ne_top (maximalIdeal.isMaximal A).ne_top <|
-    ((local_hom_TFAE (algebraMap Λ A)).out 0 2).mp (by infer_instance)
+    ((local_hom_TFAE (algebraMap Λ A)).out 4 2).mp (comap_algebraMap_maximalIdeal A)
 
 instance (n : ℕ) [NeZero n] : Nontrivial (A ⧸ maximalIdeal A ^ n) := by
   rw [Ideal.Quotient.nontrivial_iff, Ideal.ne_top_iff_exists_maximal]
@@ -683,29 +686,29 @@ lemma toInfinitesimalNeighborhood_comp_map (m n : ℕ) [NeZero m] [NeZero n] (hm
 
 /-- The special fiber of `A` over `Λ` when `Λ` is a local ring, defined as the quotient by
 the extended maximal ideal of `Λ`, viewed as an object in `LocAlgCat`. -/
-abbrev specialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev specialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (A : LocAlgCat.{w} Λ k) : LocAlgCat.{w} Λ k :=
   A.ofQuot ((maximalIdeal Λ).map (algebraMap Λ A))
 
 /-- The canonical morphism from `A` to its special fiber. -/
-abbrev toSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev toSpecialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (A : LocAlgCat.{w} Λ k) : A ⟶ A.specialFiber := toOfQuot ..
 
 /-- The morphism between special fibers induced by a morphism between two objects. -/
-abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev mapSpecialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (f : A ⟶ B) : A.specialFiber ⟶ B.specialFiber :=
   mapOfQuot f (by rw [Ideal.map_le_iff_le_comap, ← Ideal.comap_coe f.toAlgHom,
     Ideal.comap_comap, AlgHom.comp_algebraMap, ← Ideal.map_le_iff_le_comap])
 
 @[simp]
-lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+lemma algebraMap_specialFiber_apply_eq_zero [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (A : LocAlgCat.{w} Λ k) {y : Λ} (y_in : y ∈ maximalIdeal Λ) :
     algebraMap Λ A.specialFiber y = 0 := by
   rw [IsScalarTower.algebraMap_apply Λ A A.specialFiber]
   exact Ideal.Quotient.eq_zero_iff_mem.mpr (Ideal.mem_map_of_mem _ y_in)
 
 lemma toInfinitesimalNeighborhood_comp_mapInfinitesimalNeighborhood_toSpecialFiber [IsLocalRing Λ]
-    [IsLocalHom (algebraMap Λ k)] (n : ℕ) [NeZero n] (A : LocAlgCat.{w} Λ k) :
+    [Algebra.IsIntegral Λ k] (n : ℕ) [NeZero n] (A : LocAlgCat.{w} Λ k) :
     A.toInfinitesimalNeighborhood n ≫ mapInfinitesimalNeighborhood n n le_rfl A.toSpecialFiber =
       A.toSpecialFiber ≫ (A.specialFiber).toInfinitesimalNeighborhood n := by simp
 
@@ -853,6 +856,7 @@ open Module in
 @[stacks 06GG]
 theorem length_restrictScalars {M : Type*} [AddCommGroup M] [Module A M] [Module Λ M]
     [IsScalarTower Λ A M] : length Λ M = finrank (ResidueField Λ) k * length A M := by
+  have : IsLocalHom (algebraMap Λ A) := isLocalHom_algebraMap A
   rw [IsLocalRing.length_restrictScalars Λ A M, mul_comm, ← length_eq_finrank,
     (A.residueEquiv.toLinearEquiv.extendScalarsOfSurjective <|
       IsLocalRing.residue_surjective (R := Λ)).length_eq]
@@ -978,7 +982,8 @@ noncomputable section Cotangent
 
 open scoped TensorProduct
 
-instance : Module k (CotangentSpace A) := .compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
+instance : Module k (CotangentSpace A) :=
+  fast_instance% .compHom _ (A.residueEquiv.symm : k →+* ResidueField A)
 
 lemma smul_cotangent_def (r : k) (x : CotangentSpace A) : r • x = (A.residueEquiv.symm r) • x :=
   rfl
@@ -1188,7 +1193,7 @@ section IsLocalRing
 variable [IsLocalRing Λ]
 
 instance [Algebra.IsIntegral Λ k] : Module (ResidueField Λ) (CotangentSpace A) :=
-  .restrictScalars (ResidueField Λ) k (CotangentSpace A)
+  fast_instance% .restrictScalars (ResidueField Λ) k (CotangentSpace A)
 
 lemma residueField_smul_cotangent [Algebra.IsIntegral Λ k] (r : ResidueField Λ)
     (x : CotangentSpace A) : r • x = (algebraMap (ResidueField Λ) k r) • x := rfl
@@ -1200,7 +1205,7 @@ instance [Algebra.IsIntegral Λ k] : IsScalarTower Λ (ResidueField Λ) (Cotange
   .of_algebraMap_smul fun _ _ ↦ by rw [residueField_smul_cotangent,
     ← IsScalarTower.algebraMap_apply, IsScalarTower.algebraMap_smul]
 
-theorem surjective_mapCotangent_toSpecialFiber [IsLocalHom (algebraMap Λ k)] :
+theorem surjective_mapCotangent_toSpecialFiber [Algebra.IsIntegral Λ k] :
     Surjective (mapCotangent A.toSpecialFiber) := surjective_mapCotangent_toOfQuot _
 
 /-- The canonical `k`-linear map from the base-changed cotangent space of `Λ`
@@ -1253,6 +1258,7 @@ theorem range_baseCotangentMap [Algebra.IsIntegral Λ k] :
     rcases hx with ⟨u, u_in, v, v_in, huv⟩
     simp_rw [← LinearMap.mem_range, ← huv]
     have pow_le : maximalIdeal A ^ 2 ≤ maximalIdeal A := Ideal.pow_le_self (by simp)
+    have : IsLocalHom (algebraMap Λ A) := isLocalHom_algebraMap A
     change (maximalIdeal A).toCotangent ⟨u, pow_le u_in⟩ + (maximalIdeal A).toCotangent
       ⟨v, map_maximalIdeal_le _ v_in⟩ ∈ _
     rw [(Ideal.toCotangent_eq_zero ..).mpr ‹_›, zero_add]
@@ -1368,17 +1374,17 @@ abbrev mapInfinitesimalNeighborhood (m n : ℕ) [NeZero m] [NeZero n] (hmn : n �
 
 /-- The special fiber of `A` over `Λ` when `Λ` is a local ring, defined as the quotient by
 the extended maximal ideal of `Λ`, viewed as an object in `BaseCat`. -/
-abbrev specialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev specialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (A : BaseCat.{w} Λ k) : BaseCat.{w} Λ k :=
   ⟨A.obj.specialFiber, Ideal.Quotient.mk_surjective.isArtinianRing⟩
 
 /-- The canonical morphism from `A` to its special fiber in `BaseCat`. -/
-abbrev toSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev toSpecialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (A : BaseCat.{w} Λ k) : A ⟶ A.specialFiber :=
   ObjectProperty.homMk A.obj.toSpecialFiber
 
 /-- The morphism between special fibers induced by a morphism in `BaseCat`. -/
-abbrev mapSpecialFiber [IsLocalRing Λ] [IsLocalHom (algebraMap Λ k)]
+abbrev mapSpecialFiber [IsLocalRing Λ] [Algebra.IsIntegral Λ k]
     (f : A ⟶ B) : A.specialFiber ⟶ B.specialFiber :=
   ObjectProperty.homMk (LocAlgCat.mapSpecialFiber f.hom)
 
