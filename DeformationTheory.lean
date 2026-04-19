@@ -943,16 +943,16 @@ end ofTensor
 noncomputable section ofAdicCompletion
 
 variable (Λ) in
-abbrev toAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k]
+abbrev ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k]
     [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
     Algebra (AdicCompletion I X) k :=
   ((Ideal.Quotient.lift I (algebraMap X k) (by simpa [← RingHom.mem_ker])).comp
     (AdicCompletion.evalOneₐ I).toRingHom).toAlgebra
 
-lemma isScalarTower_toAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X]
+lemma isScalarTower_ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X]
     [Algebra X k] [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
-    @IsScalarTower Λ (AdicCompletion I X) k _ (toAdicCompletionResidueAlgebra Λ X hI).toSMul _ :=
-  letI := toAdicCompletionResidueAlgebra Λ X hI
+    @IsScalarTower Λ (AdicCompletion I X) k _ (ofAdicCompletionResidueAlgebra Λ X hI).toSMul _ :=
+  letI := ofAdicCompletionResidueAlgebra Λ X hI
   .of_algebraMap_eq fun _ ↦ (IsScalarTower.algebraMap_apply Λ X k _) ▸ rfl
 
 def ofAdicCompletion (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k] [IsScalarTower Λ X k]
@@ -961,8 +961,8 @@ def ofAdicCompletion (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k] [IsS
   haveI : m.IsMaximal := hm ▸ RingHom.ker_isMaximal_of_surjective _ hX
   haveI := @isLocalRing_of_isAdicComplete_maximal _ _ (m.map (algebraMap X (AdicCompletion m X)))
     (AdicCompletion.isMaximal_map_of_le m m le_rfl fg) (AdicCompletion.isAdicComplete_self m fg)
-  letI : Algebra (AdicCompletion m X) k := toAdicCompletionResidueAlgebra Λ X hm.le
-  haveI : IsScalarTower Λ (AdicCompletion m X) k := isScalarTower_toAdicCompletionResidueAlgebra ..
+  letI : Algebra (AdicCompletion m X) k := ofAdicCompletionResidueAlgebra Λ X hm.le
+  haveI : IsScalarTower Λ (AdicCompletion m X) k := isScalarTower_ofAdicCompletionResidueAlgebra ..
   of Λ k (AdicCompletion m X) sorry
 
 end ofAdicCompletion
@@ -1055,11 +1055,11 @@ section ofAdicCompletion
 
 variable (A : LocAlgCat.{w} Λ k)
 
-noncomputable instance toAdicCompletionResidueAlgebra :
+noncomputable instance ofAdicCompletionResidueAlgebra :
     Algebra (AdicCompletion (maximalIdeal A) A) k :=
   ((residueEquiv A).toRingHom.comp <| (AdicCompletion.evalOneₐ _).toRingHom).toAlgebra
 
-instance isScalarTower_toAdicCompletionResidueAlgebra :
+instance isScalarTower_ofAdicCompletionResidueAlgebra :
     IsScalarTower Λ (AdicCompletion (maximalIdeal A) A) k :=
   .of_algebraMap_eq fun _ => (IsScalarTower.algebraMap_apply Λ A k _) ▸ rfl
 
