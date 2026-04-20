@@ -913,6 +913,41 @@ lemma exists_mem_maximalIdeal_toAlgHom_apply_add_eq (f : A ⟶ C) (g : B ⟶ C) 
 
 -- From Wenrong Zou
 
+noncomputable section ofAdicCompletion
+
+variable (Λ) in
+abbrev ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k]
+    [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
+    Algebra (AdicCompletion I X) k :=
+  ((Ideal.Quotient.lift I (algebraMap X k) (by simpa [← RingHom.mem_ker])).comp
+    (AdicCompletion.evalOneₐ I).toRingHom).toAlgebra
+
+lemma isScalarTower_ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X]
+    [Algebra X k] [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
+    @IsScalarTower Λ (AdicCompletion I X) k _ (ofAdicCompletionResidueAlgebra Λ X hI).toSMul _ :=
+  letI : Algebra (AdicCompletion I X) k := ofAdicCompletionResidueAlgebra Λ X hI
+  .of_algebraMap_eq fun _ ↦ (IsScalarTower.algebraMap_apply Λ X k _) ▸ rfl
+
+/-- The object in `LocAlgCat` constructed from the `m`-adic completion of a `Λ`-algebra `X`
+equipped with a the surjective residue map to `k`, where `m` is the finitely generated kernel
+of the residue map. -/
+def ofAdicCompletion (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k] [IsScalarTower Λ X k]
+    (hX : Surjective (algebraMap X k)) {m : Ideal X} (hm : m = RingHom.ker (algebraMap X k))
+    (fg : m.FG) : LocAlgCat.{w} Λ k :=
+  haveI : m.IsMaximal := hm ▸ RingHom.ker_isMaximal_of_surjective _ hX
+  haveI : IsLocalRing (AdicCompletion m X) := @isLocalRing_of_isAdicComplete_maximal _ _
+    (m.map (algebraMap X (AdicCompletion m X))) (AdicCompletion.isMaximal_map_of_le m m le_rfl fg)
+    (AdicCompletion.isAdicComplete_self m fg)
+  letI : Algebra (AdicCompletion m X) k := ofAdicCompletionResidueAlgebra Λ X hm.le
+  haveI : IsScalarTower Λ (AdicCompletion m X) k := isScalarTower_ofAdicCompletionResidueAlgebra ..
+  of Λ k (AdicCompletion m X) (by
+    rw [RingHom.algebraMap_toAlgebra, RingHom.coe_comp, AlgHom.toRingHom_eq_coe,
+      AlgHom.coe_toRingHom]
+    exact Surjective.comp (Ideal.Quotient.lift_surjective_of_surjective m (by simp [hm]) hX)
+      (AdicCompletion.evalOneₐ_surjective m))
+
+end ofAdicCompletion
+
 section ofTensor
 
 open scoped TensorProduct
@@ -935,9 +970,9 @@ instance IsScalarTower_tensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
   letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
   letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
   .of_algebraMap_eq (R := Λ) (S := B ⊗[A] C) fun r ↦ by
-    simpa [RingHom.algebraMap_toAlgebra] using IsScalarTower.algebraMap_apply Λ B k _
+    simpa [RingHom.algebraMap_toAlgebra] using IsScalarTower.algebraMap_apply Λ B k r
 
-theorem surjective_algebraMap_tensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
+lemma surjective_algebraMap_tensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
     letI : Algebra A B := RingHom.toAlgebra f.toAlgHom
     letI : Algebra A C := RingHom.toAlgebra g.toAlgHom
     Surjective (algebraMap (B ⊗[A] C) k) := fun y ↦ by
@@ -947,34 +982,6 @@ theorem surjective_algebraMap_tensorResidueAlgebra (f : A ⟶ B) (g : A ⟶ C) :
   exact ⟨Algebra.TensorProduct.includeLeft (S := A) b, by simp [RingHom.algebraMap_toAlgebra]⟩
 
 end ofTensor
-
-noncomputable section ofAdicCompletion
-
-variable (Λ) in
-abbrev ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k]
-    [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
-    Algebra (AdicCompletion I X) k :=
-  ((Ideal.Quotient.lift I (algebraMap X k) (by simpa [← RingHom.mem_ker])).comp
-    (AdicCompletion.evalOneₐ I).toRingHom).toAlgebra
-
-lemma isScalarTower_ofAdicCompletionResidueAlgebra (X : Type w) [CommRing X] [Algebra Λ X]
-    [Algebra X k] [IsScalarTower Λ X k] {I : Ideal X} (hI : I ≤ RingHom.ker (algebraMap X k)) :
-    @IsScalarTower Λ (AdicCompletion I X) k _ (ofAdicCompletionResidueAlgebra Λ X hI).toSMul _ :=
-  letI : Algebra (AdicCompletion I X) k := ofAdicCompletionResidueAlgebra Λ X hI
-  .of_algebraMap_eq fun _ ↦ (IsScalarTower.algebraMap_apply Λ X k _) ▸ rfl
-
-def ofAdicCompletion (X : Type w) [CommRing X] [Algebra Λ X] [Algebra X k] [IsScalarTower Λ X k]
-    (hX : Surjective (algebraMap X k)) {m : Ideal X} (hm : m = RingHom.ker (algebraMap X k))
-    (fg : m.FG) : LocAlgCat.{w} Λ k :=
-  haveI : m.IsMaximal := hm ▸ RingHom.ker_isMaximal_of_surjective _ hX
-  haveI : IsLocalRing (AdicCompletion m X) := @isLocalRing_of_isAdicComplete_maximal _ _
-    (m.map (algebraMap X (AdicCompletion m X))) (AdicCompletion.isMaximal_map_of_le m m le_rfl fg)
-    (AdicCompletion.isAdicComplete_self m fg)
-  letI : Algebra (AdicCompletion m X) k := ofAdicCompletionResidueAlgebra Λ X hm.le
-  haveI : IsScalarTower Λ (AdicCompletion m X) k := isScalarTower_ofAdicCompletionResidueAlgebra ..
-  of Λ k (AdicCompletion m X) sorry
-
-end ofAdicCompletion
 
 ---------------------------------------------------------------------------------
 
@@ -1220,8 +1227,8 @@ def baseCotangentMap [Algebra.IsIntegral Λ k] (A : LocAlgCat.{w} Λ k) :
   TensorProduct.AlgebraTensorModule.lift (LinearMap.toSpanSingleton k _ baseMap)
 
 @[simp]
-lemma baseCotangentMap_tmul [Algebra.IsIntegral Λ k]
-    (r : k) (a : CotangentSpace Λ) : A.baseCotangentMap (r ⊗ₜ a) =
+lemma baseCotangentMap_tmul [Algebra.IsIntegral Λ k] (r : k) (a : CotangentSpace Λ) :
+    A.baseCotangentMap (r ⊗ₜ a) =
       r • ((maximalIdeal Λ).mapCotangent (maximalIdeal A) (Algebra.ofId Λ A) (by
         change _ ≤ Ideal.comap (algebraMap Λ A) _
         rw [comap_algebraMap_maximalIdeal]) a) := rfl
